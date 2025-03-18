@@ -1,0 +1,8 @@
+id: wait-example
+steps:
+- type: log
+  params:
+    message: 'Waiting for 5 seconds...'
+- type: wait
+  params:
+    duration: '5s'

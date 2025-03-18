@@ -1,0 +1,84 @@
+version: "2"
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bidichk
+    - decorder
+    - dupl
+    - ginkgolinter
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - godox
+    - mnd
+    - gosec
+    - lll
+    - misspell
+    - nestif
+    - nilerr
+    - nilnil
+    - nlreturn
+    - nolintlint
+    - reassign
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - whitespace
+    - wsl 
+
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+    goconst:
+      min-len: 2
+      min-occurrences: 3
+    govet:
+      enable-all: true 
+      disable:
+        - fieldalignment
+        - printf
+    lll:
+      line-length: 150
+    nestif:
+      min-complexity: 15
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    revive:
+      rules:
+        - name: dot-imports
+          disabled: true
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+  exclusions:
+    rules:
+    - path: _test\.go # disable some linters for test files
+      linters:
+        - gocyclo
+        - gosec
+        - dupl
+        - varnamelen
+    - linters:
+        - gosec
+      text: 'weak cryptographic primitive'
+    - linters:
+        - stylecheck
+      text: 'error strings should not be capitalized'
+
+issues:
+  fix: true
+
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+run:
+  issues-exit-code: 1

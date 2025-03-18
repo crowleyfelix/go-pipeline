@@ -1,0 +1,16 @@
+id: set-example
+steps:
+- id: 'setup'
+  type: set
+  params:
+    counter: '1'
+- type: log
+  params:
+    message: '{{ printf "Counter value is %s" (baggageDict . "setup" "counter") }}'
+- id: 'setup'
+  type: set
+  params:
+    counter: '{{ add (baggageDict . "setup" "counter") 10 }}'
+- type: log
+  params:
+    message: '{{ printf "Counter value is %s" (baggageDict . "setup" "counter") }}'

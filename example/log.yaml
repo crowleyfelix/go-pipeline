@@ -1,0 +1,5 @@
+id: log-example
+steps:  
+- type: log
+  params:
+    message: '{{ printf "Step %d completed at %s" 0 (now | date "2006-01-02 15:04:05") }}'

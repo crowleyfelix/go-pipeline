@@ -1,0 +1,56 @@
+id: http-example
+steps:
+- id: control
+  type: set
+  params:
+    url: 'https://swapi.bry.com.br/api/people?page=1'
+    done: 'false'
+    page: 1
+- type: until
+  params: 
+    condition: '{{ baggageDict . "control" "done" | eq "false" }}'
+    steps:
+    - type: log
+      params:
+        message: 'Extracting page {{ baggageDict . "control" "url" }}'
+    - id: http
+      type: http
+      params:
+        method: GET
+        url: '{{ baggageDict . "control" "url" }}'
+    - type: stop
+      params:
+        condition: '{{ ne (baggage . "http").StatusCode 200 }}'
+        message: 'Error on request {{ baggage . "http" | toJson }}'
+        is_error: true
+    - id: extract
+      type: set
+      params:
+        data: |
+          {{ (baggage . "http").Body | jsonPath "$.results[*]" | toJson }}
+        count: '{{ (baggage . "http").Body | jsonPath "$.results[*]" | len }}'
+        next_url: '{{ (baggage . "http").Body | jsonPath "$.next" | default "" }}'
+    - type: log
+      params:
+        message: 'Extracted {{ baggageDict . "extract" "count" }} items from page {{ baggageDict . "control" "page" }}'
+    - type: range-json
+      params:
+        source: |
+          {{ baggageDict . "extract" "data" }}
+        concurrency: 4
+        steps:
+        - type: log
+          params:
+            message: 'Person name -> {{ baggage . "$rangeItem" | toJson | jsonPath "$.name" }}'
+    - id: control
+      type: set
+      params:
+        url: '{{ baggageDict . "extract" "next_url" }}'
+        done: '{{ baggageDict . "extract" "next_url" | eq "" }}'
+        page: '{{ (baggageDict . "control" "page") | add 1 }}'
+    - type: wait
+      params:
+        duration: 1s
+- type: log
+  params:
+    message: 'Execution finished successfully'

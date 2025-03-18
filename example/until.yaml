@@ -1,0 +1,17 @@
+id: until-example
+steps:
+- id: setup
+  type: set
+  params:
+    counter: '0'
+- type: until
+  params:
+    condition: '{{ lt (baggageDict . "setup" "counter" | int) 5 }}'
+    steps:
+    - id: setup
+      type: set
+      params:
+        counter: '{{ add (baggageDict . "setup" "counter") 1 }}'
+    - type: log
+      params:
+        message: '{{ printf "Counter is %s" (baggageDict . "setup" "counter") }}'

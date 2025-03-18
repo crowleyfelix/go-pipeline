@@ -1,0 +1,7 @@
+id: 'stop-example'
+steps: 
+- type: stop
+  params:
+    condition: '{{ gt 2 1 | and (eq "true" "true") }}'
+    message: 'Stopping pipeline'
+    #is_error: 'true'
