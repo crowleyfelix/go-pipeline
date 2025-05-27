@@ -72,6 +72,10 @@ func (c Context) Clone() Context {
 	return clone
 }
 
+func (c Context) Merge(ctx Context) Context {
+	return c.WithBaggageItems(ctx.baggage)
+}
+
 func (c Context) BaggageItem(key BaggagePath) (any, error) {
 	item, found := c.baggage[key]
 	if !found {

@@ -1,0 +1,45 @@
+id: fanout-example
+steps:
+- type: fanout
+  params:
+    concurrency: '2'
+    pipelines:
+    - id: 'pipe1'
+      steps:
+      - type: log
+        params:
+          message: 'Running pipeline 1'
+      - id: pipe-set-1
+        type: set
+        params:
+          pipe: 1
+      - type: wait
+        params:
+          duration: '5s'
+    - id: 'pipe2'
+      steps:
+      - type: log
+        params:
+          message: 'Running pipeline 2'
+      - id: pipe-set-1
+        type: set
+        params:
+          pipe: 2
+      - type: wait
+        params:
+          duration: '3s'
+    - id: 'pipe3'
+      steps:
+      - type: log
+        params:
+          message: 'Running pipeline 3'
+      - id: pipe-set-1
+        type: set
+        params:
+          pipe: 3
+      - type: wait
+        params:
+          duration: '2s'
+- type: log
+  params:
+    message: '{{ baggage . "pipe-set-1" }} - {{ baggage . "pipe-set-2" }} - {{ baggage . "pipe-set-3" }}'

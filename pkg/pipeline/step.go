@@ -19,6 +19,7 @@ func RegisterProcessors() {
 	RegisterProcessor("stop", StopProcessor)
 	RegisterProcessor("until", UntilProcessor)
 	RegisterProcessor("log", LogProcessor)
+	RegisterProcessor("fanout", FanoutProcessor)
 }
 
 // Step represents a single step in the pipeline with its ID, type, and parameters.
@@ -208,48 +209,15 @@ func RangeJSONProcessor(ctx Context, step Step) (Context, error) {
 		concurrency = 1
 	}
 
-	in := make(chan map[BaggagePath]any, concurrency)
-	out := make(chan contextError, concurrency)
-
-	defer func() {
-		close(in)
-	}()
-
-	for range concurrency {
-		go execAsync(ctx, params.Pipeline, in, out)
-	}
-
-	go func() {
-		for i, item := range source {
-			i := i
-			item := item
-
-			in <- map[BaggagePath]any{
+	return fanout(ctx, concurrency, func(item any, i int) workerParams {
+		return workerParams{
+			Pipeline: params.Pipeline,
+			Baggage: map[BaggagePath]any{
 				step.BaggagePath(BaggageKeyRangeItem):  item,
 				step.BaggagePath(BaggageKeyRangeIndex): i,
-			}
+			},
 		}
-	}()
-
-	for range len(source) {
-		select {
-		case <-ctx.Done():
-			return ctx, ctx.Err()
-
-		case result := <-out:
-			if result.error != nil {
-				return ctx, err
-			}
-
-			// If greather than 1 the context should be lost, due to no
-			// garanties of the step execution order
-			if concurrency <= 1 {
-				ctx = result.Context
-			}
-		}
-	}
-
-	return ctx, nil
+	}, source...)
 }
 
 // LogParams defines the parameters for the LogProcessor.
@@ -279,39 +247,6 @@ func LogProcessor(ctx Context, step Step) (Context, error) {
 	log.Log().Info(ctx, message)
 
 	return ctx, nil
-}
-
-type contextError struct {
-	Context
-	error
-}
-
-// execAsync executes a pipeline asynchronously for each input item.
-func execAsync(ctx Context, pipe Pipeline, in chan map[BaggagePath]any, out chan contextError) {
-	defer func() {
-		if r := recover(); r != nil {
-			out <- contextError{ctx, fmt.Errorf("panic: %v", r)}
-		}
-	}()
-
-	parentCtx := ctx
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case items, closed := <-in:
-			if !closed {
-				return
-			}
-
-			ctx = parentCtx.Clone().WithBaggageItems(items)
-
-			var err error
-			ctx, err = pipe.Execute(ctx)
-			out <- contextError{ctx, err}
-		}
-	}
 }
 
 // UntilParams defines the parameters for the UntilProcessor.
@@ -390,4 +325,121 @@ func WaitProcessor(ctx Context, step Step) (Context, error) {
 	time.Sleep(duration)
 
 	return ctx, nil
+}
+
+type FanoutParams struct {
+	Concurrency expression.Int `yaml:"concurrency"`
+	Pipelines   []Pipeline     `yaml:"pipelines"`
+}
+
+// FanoutProcessor executes multiple pipelines concurrently.
+// Example YAML:
+//
+//	id: fanout-example
+//	steps:
+//	- type: fanout
+//	  params:
+//	 	pipelines:
+//		- id: 'pipe1'
+//		  steps:
+//		  - type: log
+//		    params:
+//		      message: 'Running pipeline 1'
+//		- id: 'pipe2'
+//		  steps:
+//		  - type: log
+//		    params:
+//		      message: 'Running pipeline 2'
+func FanoutProcessor(ctx Context, step Step) (Context, error) {
+	params, err := StepParams[FanoutParams](step.Params)
+	if err != nil {
+		return ctx, err
+	}
+
+	concurrency, err := params.Concurrency.Eval(ctx)
+	if err != nil {
+		return ctx, err
+	}
+
+	if concurrency == 0 {
+		concurrency = len(params.Pipelines)
+	}
+
+	pipelines := params.Pipelines
+
+	return fanout(ctx, concurrency, func(item Pipeline, i int) workerParams {
+		return workerParams{Pipeline: item}
+	}, pipelines...)
+}
+
+func fanout[T any](ctx Context, concurrency int, mapper func(item T, i int) workerParams, items ...T) (Context, error) {
+	in := make(chan workerParams, concurrency)
+	out := make(chan workerResult, concurrency)
+
+	defer func() {
+		close(in)
+	}()
+
+	for range concurrency {
+		go worker(ctx, in, out)
+	}
+
+	go func() {
+		for i, item := range items {
+			in <- mapper(item, i)
+		}
+	}()
+
+	for range len(items) {
+		select {
+		case <-ctx.Done():
+			return ctx, ctx.Err()
+
+		case result := <-out:
+			if result.error != nil {
+				return ctx, result.error
+			}
+
+			ctx = ctx.Merge(result.Context)
+		}
+	}
+
+	return ctx, nil
+}
+
+type workerParams struct {
+	Pipeline
+	Baggage map[BaggagePath]any
+}
+
+type workerResult struct {
+	Context
+	error
+}
+
+func worker(ctx Context, in chan workerParams, out chan workerResult) {
+	defer func() {
+		if r := recover(); r != nil {
+			out <- workerResult{ctx, fmt.Errorf("panic: %v", r)}
+		}
+	}()
+
+	parentCtx := ctx
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case input, closed := <-in:
+			if !closed {
+				return
+			}
+
+			ctx = parentCtx.Clone().WithBaggageItems(input.Baggage)
+
+			var err error
+			ctx, err = input.Execute(ctx)
+			out <- workerResult{ctx, err}
+		}
+	}
 }
