@@ -1,13 +1,17 @@
 package log
 
+import "log"
+
 var (
 	logger Logger
 )
 
-func Setup(l Logger) {
+func SetUp(l Logger) {
 	logger = l
 }
 
 func init() {
-	Setup(StandardLogger{})
+	SetUp(Noop{})
 }
+
+var Fatal = log.Fatal

@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"log"
 	httplib "net/http"
 	"os"
 	"strings"
 
 	"github.com/crowleyfelix/go-pipeline/pkg/http"
+	"github.com/crowleyfelix/go-pipeline/pkg/log"
 	"github.com/crowleyfelix/go-pipeline/pkg/pipeline"
 	"github.com/samber/lo"
 )
@@ -18,6 +18,7 @@ var (
 )
 
 func main() {
+	log.SetUp(log.Standard{})
 	http.RegisterProcessor(httplib.DefaultClient)
 
 	pipelines := lo.Must(pipeline.Load(os.DirFS(pipelineDir)))

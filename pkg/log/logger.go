@@ -1,22 +1,42 @@
 package log
 
-import "context"
+import (
+	"context"
+	"log"
+)
 
-// Logger is an interface to be used as a standard log for.
-type Logger interface {
-	// Error - is used when something goes wrong and blocks the operation from going on.
-	Error(ctx context.Context, msg string, any ...any)
+type Standard struct{}
 
-	// Warn - is used when something is different than expected.
-	Warn(ctx context.Context, msg string, any ...any)
-
-	// Info - is used for expected and helpful information.
-	Info(ctx context.Context, msg string, any ...any)
-
-	// Debug - is used for development and production troubleshooting.
-	Debug(ctx context.Context, msg string, any ...any)
+// Error - logs an error message.
+func (s Standard) Error(ctx context.Context, msg string, any ...any) {
+	log.Printf("[ERROR] "+msg, any...)
 }
 
-func Log() Logger {
-	return logger
+// Warn - logs a warning message.
+func (s Standard) Warn(ctx context.Context, msg string, any ...any) {
+	log.Printf("[WARN] "+msg, any...)
+}
+
+// Info - logs an informational message.
+func (s Standard) Info(ctx context.Context, msg string, any ...any) {
+	log.Printf("[INFO] "+msg, any...)
+}
+
+// Debug - logs a debug message.
+func (s Standard) Debug(ctx context.Context, msg string, any ...any) {
+	log.Printf("[DEBUG] "+msg, any...)
+}
+
+type Noop struct{}
+
+func (s Noop) Error(ctx context.Context, msg string, any ...any) {
+}
+
+func (s Noop) Warn(ctx context.Context, msg string, any ...any) {
+}
+
+func (s Noop) Info(ctx context.Context, msg string, any ...any) {
+}
+
+func (s Noop) Debug(ctx context.Context, msg string, any ...any) {
 }

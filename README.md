@@ -77,19 +77,21 @@ Load the pipeline passing the folder path, and execute.
 import (
   "context"
   "os"
+  "github.com/crowleyfelix/go-pipeline/pkg/log"
   "github.com/crowleyfelix/go-pipeline/pkg/pipeline"
 )
 
 func main() {
+  log.SetUp(log.Standard{})
   pipelines, err := pipeline.Load(os.DirFS(os.Getenv("PIPELINE_DIR")))
   if err != nil {
-    panic(err)
+    log.Fatal(err)
   }
 
   ctx := pipeline.NewContext(context.Background(), pipelines)
   ctx, err := pipelines.Execute(ctx, "range-example")
   if err != nil && err != context.Canceled {
-    panic(err)
+    log.Fatal(err)
   }
 }
 ```
