@@ -154,3 +154,63 @@ func main() {
 | `jsonPath`           | Extracts data from a JSON string using a JSONPath expression.                                        | `{{ jsonPath "$.items[0].name" "{\"items\": [{\"name\": \"example\"}]}" }}`                   |
 
 Besides the standard library functions, all functions from the [sprig](https://masterminds.github.io/sprig/) library are availble.
+
+## Customize
+
+It's possible to extend the go-pipeline by registering step processors and go template functions.
+
+```go
+package main
+
+import (
+  "fmt"
+  "html/template"
+
+  "github.com/crowleyfelix/go-pipeline/pkg/expression"
+  "github.com/crowleyfelix/go-pipeline/pkg/pipeline"
+)
+
+type CustomParams struct {
+  Name expression.Field[string] `yaml:"name"`
+}
+
+func main() {
+  pipeline.RegisterProcessor("custom", func(ctx pipeline.Context, step pipeline.Step) (pipeline.Context, error) {
+    params, err := pipeline.StepParams[CustomParams](step.Params)
+    if err != nil {
+      return ctx, err
+    }
+
+    name, err := params.Name.Eval(ctx)
+    if err != nil {
+      return ctx, err
+    }
+
+    value := fmt.Sprintf("officer %s", name)
+
+    return ctx.WithBaggage(step.BaggagePath(), value), nil
+  })
+
+  expression.RegisterFuncs(template.FuncMap{
+    "greeting": func(ctx pipeline.Context, path pipeline.BaggagePath) (string, error) {
+      item, err := ctx.BaggageItem(path)
+
+      return fmt.Sprintf("hello, %s", item), err
+    },
+  })
+}
+```
+
+And the registered plugins can be used like this
+
+```yaml
+id: my-pipeline
+steps:
+- id: previous-step
+  type: custom
+  params:
+    name: 'Bob'
+- type: log
+  params:
+    message: '{{ greeting . "previous-step" }}'
+```
