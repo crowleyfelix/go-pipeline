@@ -80,26 +80,36 @@ func Load(fileSystem fs.FS) (Pipelines, error) {
 // Execute runs all the steps in the pipeline in the given context.
 // It logs the execution progress and returns the updated context or an error if any step fails.
 func (p Pipeline) Execute(ctx Context) (Context, error) {
-	log.Log().Info(ctx, "Executing pipeline %s", p.ID)
+	return interceptor(ctx, p, func(ctx Context) (Context, error) {
+		log.Log().Info(ctx, "Executing pipeline %s", p)
 
-	var err error
+		var err error
 
-	for _, step := range p.Steps {
-		select {
-		case <-ctx.Done():
-			return ctx, ctx.Err()
-		default:
-			ctx, err = processors.Execute(ctx, step)
+		for _, step := range p.Steps {
+			select {
+			case <-ctx.Done():
+				return ctx, ctx.Err()
+			default:
+				ctx, err = processors.Execute(ctx, step)
 
-			if err != nil {
-				log.Log().Error(ctx, "Error executing step %s: %s", step, err)
+				if err != nil {
+					log.Log().Error(ctx, "Error executing step %s: %s", step, err)
 
-				return ctx, err
+					return ctx, err
+				}
 			}
 		}
+
+		log.Log().Info(ctx, "Executed pipeline %s", p)
+
+		return ctx, nil
+	})
+}
+
+func (p Pipeline) String() string {
+	if p.ID == "" {
+		return "unidentified"
 	}
 
-	log.Log().Info(ctx, "Executed pipeline %s", p.ID)
-
-	return ctx, nil
+	return p.ID
 }

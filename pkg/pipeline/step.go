@@ -78,7 +78,7 @@ func (p StepProcessors) Execute(ctx Context, step Step) (Context, error) {
 		return ctx, fmt.Errorf("unknown step type: %s", step.Type)
 	}
 
-	return processor(ctx, step)
+	return stepInterceptor(ctx, step, processor)
 }
 
 // RegisterProcessor registers a step processor function with a given name.

@@ -4,7 +4,11 @@ import (
 	"github.com/crowleyfelix/go-pipeline/pkg/expression"
 )
 
-var processors StepProcessors
+var (
+	processors      StepProcessors
+	interceptor     Interceptor
+	stepInterceptor StepInterceptor
+)
 
 func init() {
 	expression.RegisterFuncs(templateFuncs)
@@ -12,4 +16,6 @@ func init() {
 	processors = StepProcessors{}
 
 	RegisterProcessors()
+	SetInterceptor(defaultInterceptor)
+	SetStepInterceptor(defaultStepInterceptorfunc)
 }
