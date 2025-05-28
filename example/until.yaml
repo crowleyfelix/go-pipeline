@@ -6,12 +6,12 @@ steps:
     counter: '0'
 - type: until
   params:
-    condition: '{{ lt (baggageDict . "setup" "counter" | int) 5 }}'
+    condition: '{{ lt (variableGet . "setup" "counter" | int) 5 }}'
     steps:
     - id: setup
       type: set
       params:
-        counter: '{{ add (baggageDict . "setup" "counter") 1 }}'
+        counter: '{{ add (variableGet . "setup" "counter") 1 }}'
     - type: log
       params:
-        message: '{{ printf "Counter is %s" (baggageDict . "setup" "counter") }}'
+        message: '{{ printf "Counter is %s" (variableGet . "setup" "counter") }}'

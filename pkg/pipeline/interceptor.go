@@ -1,16 +1,19 @@
 package pipeline
 
 import (
+	"context"
 	"time"
 
 	"github.com/crowleyfelix/go-pipeline/pkg/log"
 )
 
+type Executor func(ctx context.Context, scope Scope) (Scope, error)
+
 // Interceptor defines a function that intercepts a pipeline execution.
-type Interceptor func(ctx Context, pipeline Pipeline, execute func(ctx Context) (Context, error)) (Context, error)
+type Interceptor func(ctx context.Context, scope Scope, pipeline Pipeline, execute Executor) (Scope, error)
 
 // StepInterceptor defines a function that intercepts the execution of a step within a pipeline.
-type StepInterceptor func(ctx Context, step Step, processor StepProcessor) (Context, error)
+type StepInterceptor func(ctx context.Context, scope Scope, step Step, executor StepExecutor) (Scope, error)
 
 func SetInterceptor(itc Interceptor) {
 	interceptor = itc
@@ -20,20 +23,20 @@ func SetStepInterceptor(itc StepInterceptor) {
 	stepInterceptor = itc
 }
 
-func defaultInterceptor(ctx Context, pipeline Pipeline, executor func(ctx Context) (Context, error)) (Context, error) {
+func defaultInterceptor(ctx context.Context, scope Scope, pipeline Pipeline, executor Executor) (Scope, error) {
 	start := time.Now()
-	ctx, err := executor(ctx)
+	scope, err := executor(ctx, scope)
 	end := time.Now()
 	log.Log().Info(ctx, "Pipeline %s executed in %s", pipeline, end.Sub(start))
 
-	return ctx, err
+	return scope, err
 }
 
-func defaultStepInterceptorfunc(ctx Context, step Step, processor StepProcessor) (Context, error) {
+func defaultStepInterceptorfunc(ctx context.Context, scope Scope, step Step, executor StepExecutor) (Scope, error) {
 	start := time.Now()
-	ctx, err := processor(ctx, step)
+	scope, err := executor(ctx, scope, step)
 	end := time.Now()
 	log.Log().Info(ctx, "Step %s executed in %s", step, end.Sub(start))
 
-	return ctx, err
+	return scope, err
 }

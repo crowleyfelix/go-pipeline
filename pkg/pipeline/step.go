@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -11,23 +12,23 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// RegisterProcessors registers all available step processors.
-func RegisterProcessors() {
-	RegisterProcessor("pipeline", PipelineProcesor)
-	RegisterProcessor("set", SetProcessor)
-	RegisterProcessor("range-json", RangeJSONProcessor)
-	RegisterProcessor("wait", WaitProcessor)
-	RegisterProcessor("stop", StopProcessor)
-	RegisterProcessor("until", UntilProcessor)
-	RegisterProcessor("log", LogProcessor)
-	RegisterProcessor("fanout", FanoutProcessor)
+// RegisterStepExecutors registers all available step executors.
+func RegisterStepExecutors() {
+	RegisterStepExecutor("pipeline", PipelineExecutor)
+	RegisterStepExecutor("set", SetExecutor)
+	RegisterStepExecutor("range-json", RangeJSONExecutor)
+	RegisterStepExecutor("wait", WaitExecutor)
+	RegisterStepExecutor("stop", StopExecutor)
+	RegisterStepExecutor("until", UntilExecutor)
+	RegisterStepExecutor("log", LogExecutor)
+	RegisterStepExecutor("fanout", FanoutExecutor)
 }
 
 // Step represents a single step in the pipeline with its ID, type, and parameters.
 type Step struct {
-	ID     BaggagePathNode `yaml:"id"`
-	Type   string          `yaml:"type"`
-	Params map[string]any  `yaml:"params"`
+	ID     VariablePathNode `yaml:"id"`
+	Type   string           `yaml:"type"`
+	Params map[string]any   `yaml:"params"`
 }
 
 // String returns a string representation of the step, including its type and ID.
@@ -41,18 +42,18 @@ func (s Step) String() string {
 	return str
 }
 
-func (s Step) BaggagePath(pathNodes ...BaggagePathNode) BaggagePath {
-	var allNodes = []BaggagePathNode{}
+func (s Step) VariablePath(pathNodes ...VariablePathNode) VariablePath {
+	var allNodes = []VariablePathNode{}
 	if s.ID != "" {
 		allNodes = append(allNodes, s.ID)
 	}
 
 	allNodes = append(allNodes, pathNodes...)
 
-	bpn := lo.Map(allNodes, func(key BaggagePathNode, _ int) string { return string(key) })
+	bpn := lo.Map(allNodes, func(key VariablePathNode, _ int) string { return string(key) })
 	path := strings.Join(bpn, ".")
 
-	return BaggagePath(path)
+	return VariablePath(path)
 }
 
 // StepParams unmarshals a raw map into a typed struct of the specified type.
@@ -67,40 +68,40 @@ func StepParams[T any](raw map[string]any) (T, error) {
 	return value, yaml.Unmarshal(blob, &value)
 }
 
-// StepProcessors is a map of step processor functions keyed by their step type.
-type StepProcessors map[string]StepProcessor
+// StepExecutors is a map of step executor functions keyed by their step type.
+type StepExecutors map[string]StepExecutor
 
-// Execute executes the processor for the given step type with the provided context.
-func (p StepProcessors) Execute(ctx Context, step Step) (Context, error) {
+// Execute executes the executor for the given step type with the provided context.
+func (p StepExecutors) Execute(ctx context.Context, scope Scope, step Step) (Scope, error) {
 	log.Log().Debug(ctx, "Executing %s", step)
 
-	processor, found := p[step.Type]
+	executor, found := p[step.Type]
 
 	if !found {
-		return ctx, fmt.Errorf("unknown step type: %s", step.Type)
+		return scope, fmt.Errorf("unknown step type: %s", step.Type)
 	}
 
-	return stepInterceptor(ctx, step, processor)
+	return stepInterceptor(ctx, scope, step, executor)
 }
 
-// RegisterProcessor registers a step processor function with a given name.
-func RegisterProcessor(name string, processor StepProcessor) {
-	processors[name] = processor
+// RegisterStepExecutor registers a step executor function with a given name.
+func RegisterStepExecutor(name string, executor StepExecutor) {
+	executors[name] = executor
 }
 
-// StepProcessor defines the function signature for a step processor.
-type StepProcessor func(ctx Context, step Step) (Context, error)
+// StepExecutor defines the function signature for a step executor.
+type StepExecutor func(ctx context.Context, scope Scope, step Step) (Scope, error)
 
-func PipelineProcesor(ctx Context, step Step) (Context, error) {
+func PipelineExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
 	params, err := StepParams[Pipeline](step.Params)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
-	return params.Execute(ctx)
+	return params.Execute(ctx, scope)
 }
 
-// # SetProcessor sets a map[string]any in the context.
+// # SetExecutor sets a map[string]any in the context.
 // Example YAML:
 //
 //	id: set-example
@@ -112,29 +113,29 @@ func PipelineProcesor(ctx Context, step Step) (Context, error) {
 //	- id: 'plus'
 //	  type: set
 //	  params:
-//	    counter: '{{ add (baggageDict . "setup" "counter") 10 }}'
-func SetProcessor(ctx Context, step Step) (Context, error) {
+//	    counter: '{{ add (variableGet . "setup" "counter") 10 }}'
+func SetExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
 	params, err := StepParams[expression.Field[map[string]any]](step.Params)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
-	value, err := params.Eval(ctx)
+	value, err := params.Eval(ctx, scope)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
-	return ctx.WithBaggage(step.BaggagePath(), value), nil
+	return scope.WithVariable(step.VariablePath(), value), nil
 }
 
-// StopParams defines the parameters for the StopProcessor.
+// StopParams defines the parameters for the StopExecutor.
 type StopParams struct {
 	Condition expression.Bool          `yaml:"condition"`
 	Message   expression.Field[string] `yaml:"message"`
 	IsError   expression.Bool          `yaml:"is_error"`
 }
 
-// StopProcessor stops the pipeline execution if the condition evaluates to true.
+// StopExecutor stops the pipeline execution if the condition evaluates to true.
 // Example YAML:
 //
 //	id: 'stop-example'
@@ -144,25 +145,25 @@ type StopParams struct {
 //	  	condition: '{{ gt 2 1 | and (eq "true" "true") }}'
 //	  	message: 'Stopping pipeline'
 //	  	is_error: 'true'
-func StopProcessor(ctx Context, step Step) (Context, error) {
+func StopExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
 	params, err := StepParams[StopParams](step.Params)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
-	stop, err := params.Condition.Eval(ctx)
+	stop, err := params.Condition.Eval(ctx, scope)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
-	msg, err := params.Message.Eval(ctx)
+	msg, err := params.Message.Eval(ctx, scope)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
-	isError, err := params.IsError.Eval(ctx)
+	isError, err := params.IsError.Eval(ctx, scope)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
 	if isError {
@@ -171,22 +172,23 @@ func StopProcessor(ctx Context, step Step) (Context, error) {
 
 	if stop {
 		log.Log().Info(ctx, msg)
-		ctx.Stop(err)
 
-		return ctx, err
+		scope.Finished = true
+
+		return scope, err
 	}
 
-	return ctx, nil
+	return scope, nil
 }
 
-// RangeParams defines the parameters for the RangeProcessor.
+// RangeParams defines the parameters for the RangeExecutor.
 type RangeParams struct {
 	Source      expression.JSON[[]any] `yaml:"source"`
 	Concurrency expression.Int         `yaml:"concurrency"`
 	Pipeline    `yaml:",inline"`
 }
 
-// RangeJSONProcessor executes a pipeline for each item in the json source with optional concurrency.
+// RangeJSONExecutor executes a pipeline for each item in the json source with optional concurrency.
 // Example YAML:
 //
 //	id: range-example
@@ -198,122 +200,117 @@ type RangeParams struct {
 //	  	steps:
 //		- type: log
 //	  	  params:
-//	  		message: '{{ printf "Processing item: %v" ( baggage . "$rangeItem" )}}'
-func RangeJSONProcessor(ctx Context, step Step) (Context, error) {
+//	  		message: '{{ printf "Processing item: %v" ( variable . "$rangeItem" )}}'
+func RangeJSONExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
 	params, err := StepParams[RangeParams](step.Params)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
-	source, err := params.Source.Eval(ctx)
+	source, err := params.Source.Eval(ctx, scope)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
-	concurrency, err := params.Concurrency.Eval(ctx)
+	concurrency, err := params.Concurrency.Eval(ctx, scope)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
 	if concurrency == 0 {
 		concurrency = 1
 	}
 
-	return fanout(ctx, concurrency, func(item any, i int) workerParams {
+	return fanout(ctx, scope, concurrency, func(item any, i int) workerParams {
 		return workerParams{
 			Pipeline: params.Pipeline,
-			Baggage: map[BaggagePath]any{
-				step.BaggagePath(BaggageKeyRangeItem):  item,
-				step.BaggagePath(BaggageKeyRangeIndex): i,
+			Variables: map[VariablePath]any{
+				step.VariablePath(PathNodeRangeItem):  item,
+				step.VariablePath(PathNodeRangeIndex): i,
 			},
 		}
 	}, source...)
 }
 
-// LogParams defines the parameters for the LogProcessor.
+// LogParams defines the parameters for the LogExecutor.
 type LogParams struct {
 	Message expression.Field[string] `yaml:"message"`
 }
 
-// LogProcessor logs a message to the context logger.
+// LogExecutor logs a message to the context logger.
 // Example YAML:
 //
 //	id: log-example
 //	steps:
 //	- type: log
 //	  params:
-//	  	message: '{{ printf "Step %s completed at %s" (baggageDict . "some_step" "id") (now | date "2006-01-02 15:04:05") }}'
-func LogProcessor(ctx Context, step Step) (Context, error) {
+//	  	message: '{{ printf "Step %s completed at %s" (variableGet . "some_step" "id") (now | date "2006-01-02 15:04:05") }}'
+func LogExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
 	params, err := StepParams[LogParams](step.Params)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
-	message, err := params.Message.Eval(ctx)
+	message, err := params.Message.Eval(ctx, scope)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
 	log.Log().Info(ctx, message)
 
-	return ctx, nil
+	return scope, nil
 }
 
-// UntilParams defines the parameters for the UntilProcessor.
+// UntilParams defines the parameters for the UntilExecutor.
 type UntilParams struct {
 	Condition expression.Bool `yaml:"condition"`
 	Pipeline  `yaml:",inline"`
 }
 
-// UntilProcessor executes a pipeline repeatedly until the condition evaluates to false.
+// UntilExecutor executes a pipeline repeatedly until the condition evaluates to false.
 // Example YAML:
 //
 //	id: until-example
 //	steps:
 //	- type: until
 //	  params:
-//	  	condition: '{{ lt (baggageDict . "setup" "counter" | int) 5 }}'
+//	  	condition: '{{ lt (variableGet . "setup" "counter" | int) 5 }}'
 //	  	steps:
 //	  	- type: log
 //	  	  params:
-//	  	 	message: '{{ printf "Counter is %d" (baggageDict . "setup" "counter") }}'
-func UntilProcessor(ctx Context, step Step) (Context, error) {
+//	  	 	message: '{{ printf "Counter is %d" (variableGet . "setup" "counter") }}'
+func UntilExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
 	params, err := StepParams[UntilParams](step.Params)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
-	proceed, err := params.Condition.Eval(ctx)
+	proceed, err := params.Condition.Eval(ctx, scope)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
-	for proceed {
-		select {
-		case <-ctx.Done():
-			return ctx, ctx.Err()
-		default:
-			ctx, err = params.Execute(ctx)
-			if err != nil {
-				return ctx, err
-			}
+	for proceed && !scope.Finished {
+		scope, err = params.Execute(ctx, scope)
+		if err != nil {
+			return scope, err
+		}
 
-			proceed, err = params.Condition.Eval(ctx)
-			if err != nil {
-				return ctx, err
-			}
+		proceed, err = params.Condition.Eval(ctx, scope)
+		if err != nil {
+			return scope, err
 		}
 	}
 
-	return ctx, err
+	return scope, err
 }
 
-// WaitParams defines the parameters for the WaitProcessor.
+// WaitParams defines the parameters for the WaitExecutor.
 type WaitParams struct {
 	Duration expression.Duration `yaml:"duration"`
 }
 
-// WaitProcessor pauses the pipeline execution for the specified duration.
+// WaitExecutor pauses the pipeline execution for the specified duration.
 // Example YAML:
 //
 //	id: wait-example
@@ -321,20 +318,20 @@ type WaitParams struct {
 //	- type: wait
 //	  params:
 //	    duration: '5s'
-func WaitProcessor(ctx Context, step Step) (Context, error) {
+func WaitExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
 	params, err := StepParams[WaitParams](step.Params)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
-	duration, err := params.Duration.Eval(ctx)
+	duration, err := params.Duration.Eval(ctx, scope)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
 	time.Sleep(duration)
 
-	return ctx, nil
+	return scope, nil
 }
 
 type FanoutParams struct {
@@ -342,7 +339,7 @@ type FanoutParams struct {
 	Pipelines   []Pipeline     `yaml:"pipelines"`
 }
 
-// FanoutProcessor executes multiple pipelines concurrently.
+// FanoutExecutor executes multiple pipelines concurrently.
 // Example YAML:
 //
 //	id: fanout-example
@@ -360,15 +357,15 @@ type FanoutParams struct {
 //		  - type: log
 //		    params:
 //		      message: 'Running pipeline 2'
-func FanoutProcessor(ctx Context, step Step) (Context, error) {
+func FanoutExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
 	params, err := StepParams[FanoutParams](step.Params)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
-	concurrency, err := params.Concurrency.Eval(ctx)
+	concurrency, err := params.Concurrency.Eval(ctx, scope)
 	if err != nil {
-		return ctx, err
+		return scope, err
 	}
 
 	if concurrency == 0 {
@@ -377,12 +374,12 @@ func FanoutProcessor(ctx Context, step Step) (Context, error) {
 
 	pipelines := params.Pipelines
 
-	return fanout(ctx, concurrency, func(item Pipeline, i int) workerParams {
+	return fanout(ctx, scope, concurrency, func(item Pipeline, i int) workerParams {
 		return workerParams{Pipeline: item}
 	}, pipelines...)
 }
 
-func fanout[T any](ctx Context, concurrency int, mapper func(item T, i int) workerParams, items ...T) (Context, error) {
+func fanout[T any](ctx context.Context, scope Scope, concurrency int, mapper func(item T, i int) workerParams, items ...T) (Scope, error) {
 	in := make(chan workerParams, concurrency)
 	out := make(chan workerResult, concurrency)
 
@@ -390,8 +387,12 @@ func fanout[T any](ctx Context, concurrency int, mapper func(item T, i int) work
 		close(in)
 	}()
 
+	ctx, cancel := context.WithCancel(ctx)
+
+	defer cancel()
+
 	for range concurrency {
-		go worker(ctx, in, out)
+		go worker(ctx, scope, in, out)
 	}
 
 	go func() {
@@ -401,40 +402,37 @@ func fanout[T any](ctx Context, concurrency int, mapper func(item T, i int) work
 	}()
 
 	for range len(items) {
-		select {
-		case <-ctx.Done():
-			return ctx, ctx.Err()
-
-		case result := <-out:
-			if result.error != nil {
-				return ctx, result.error
-			}
-
-			ctx = ctx.Merge(result.Context)
+		if scope.Finished {
+			return scope, nil
 		}
+
+		result := <-out
+		if result.error != nil {
+			return scope, result.error
+		}
+
+		scope = scope.Merge(result.Scope)
 	}
 
-	return ctx, nil
+	return scope, nil
 }
 
 type workerParams struct {
 	Pipeline
-	Baggage map[BaggagePath]any
+	Variables map[VariablePath]any
 }
 
 type workerResult struct {
-	Context
+	Scope
 	error
 }
 
-func worker(ctx Context, in chan workerParams, out chan workerResult) {
+func worker(ctx context.Context, scope Scope, in chan workerParams, out chan workerResult) {
 	defer func() {
 		if r := recover(); r != nil {
-			out <- workerResult{ctx, fmt.Errorf("panic: %v", r)}
+			out <- workerResult{scope, fmt.Errorf("panic: %v", r)}
 		}
 	}()
-
-	parentCtx := ctx
 
 	for {
 		select {
@@ -445,11 +443,11 @@ func worker(ctx Context, in chan workerParams, out chan workerResult) {
 				return
 			}
 
-			ctx = parentCtx.Clone().WithBaggageItems(input.Baggage)
+			scope = scope.Clone().WithVariables(input.Variables)
 
 			var err error
-			ctx, err = input.Execute(ctx)
-			out <- workerResult{ctx, err}
+			scope, err = input.Execute(ctx, scope)
+			out <- workerResult{scope, err}
 		}
 	}
 }

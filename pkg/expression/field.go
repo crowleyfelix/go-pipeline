@@ -30,7 +30,7 @@ func (f *Field[T]) MarshalYAML() (any, error) {
 }
 
 // Eval the values with the context.
-func (f Field[T]) Eval(ctx context.Context) (T, error) {
+func (f Field[T]) Eval(ctx context.Context, scope any) (T, error) {
 	var value T
 
 	var nodeBuff bytes.Buffer
@@ -49,7 +49,7 @@ func (f Field[T]) Eval(ctx context.Context) (T, error) {
 
 	nodeBuff.Reset()
 
-	if err = parsed.Execute(&nodeBuff, ctx); err != nil {
+	if err = parsed.Execute(&nodeBuff, scope); err != nil {
 		return value, err
 	}
 
@@ -67,8 +67,8 @@ type Bool struct {
 	Field[string]
 }
 
-func (f Bool) Eval(ctx context.Context) (bool, error) {
-	value, err := f.Field.Eval(ctx)
+func (f Bool) Eval(ctx context.Context, scope any) (bool, error) {
+	value, err := f.Field.Eval(ctx, scope)
 
 	if err != nil {
 		return false, err
@@ -85,8 +85,8 @@ type Int struct {
 	Field[string]
 }
 
-func (f Int) Eval(ctx context.Context) (int, error) {
-	value, err := f.Field.Eval(ctx)
+func (f Int) Eval(ctx context.Context, scope any) (int, error) {
+	value, err := f.Field.Eval(ctx, scope)
 
 	if err != nil {
 		return 0, err
@@ -108,8 +108,8 @@ type Duration struct {
 	Field[string]
 }
 
-func (f Duration) Eval(ctx context.Context) (time.Duration, error) {
-	value, err := f.Field.Eval(ctx)
+func (f Duration) Eval(ctx context.Context, scope any) (time.Duration, error) {
+	value, err := f.Field.Eval(ctx, scope)
 
 	if err != nil {
 		return 0, err
@@ -126,10 +126,10 @@ type JSON[T any] struct {
 	Field[string]
 }
 
-func (f JSON[T]) Eval(ctx context.Context) (T, error) {
+func (f JSON[T]) Eval(ctx context.Context, scope any) (T, error) {
 	var t T
 
-	value, err := f.Field.Eval(ctx)
+	value, err := f.Field.Eval(ctx, scope)
 
 	if err != nil {
 		return t, err

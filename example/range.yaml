@@ -6,9 +6,9 @@ steps:
     list: '{{ list 1 2 3 4 5 6 7 8 9 10 | toJson }}'
 - type: range-json
   params:
-    source: '{{ baggageDict . "some-step" "list" }}'
+    source: '{{ variableGet . "some-step" "list" }}'
     concurrency: '{{ env "RANGE_CONCURRENCY" | default "2" }}'
     steps:
     - type: log
       params:
-        message: '{{ printf "Processing %d item: %v" ( baggage . "$rangeIndex" ) ( baggage . "$rangeItem" )}}'
+        message: '{{ printf "Processing %d item: %v" ( variable . "$rangeIndex" ) ( variable . "$rangeItem" )}}'

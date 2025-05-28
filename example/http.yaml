@@ -8,46 +8,46 @@ steps:
     page: 1
 - type: until
   params: 
-    condition: '{{ baggageDict . "control" "done" | eq "false" }}'
+    condition: '{{ variableGet . "control" "done" | eq "false" }}'
     steps:
     - type: log
       params:
-        message: 'Extracting page {{ baggageDict . "control" "url" }}'
+        message: 'Extracting page {{ variableGet . "control" "url" }}'
     - id: http
       type: http
       params:
         method: GET
-        url: '{{ baggageDict . "control" "url" }}'
+        url: '{{ variableGet . "control" "url" }}'
     - type: stop
       params:
-        condition: '{{ ne (baggage . "http").StatusCode 200 }}'
-        message: 'Error on request {{ baggage . "http" | toJson }}'
+        condition: '{{ ne (variable . "http").StatusCode 200 }}'
+        message: 'Error on request {{ variable . "http" | toJson }}'
         is_error: true
     - id: extract
       type: set
       params:
         data: |
-          {{ (baggage . "http").Body | jsonPath "$.results[*]" | toJson }}
-        count: '{{ (baggage . "http").Body | jsonPath "$.results[*]" | len }}'
-        next_url: '{{ (baggage . "http").Body | jsonPath "$.next" | default "" }}'
+          {{ (variable . "http").Body | jsonPath "$.results[*]" | toJson }}
+        count: '{{ (variable . "http").Body | jsonPath "$.results[*]" | len }}'
+        next_url: '{{ (variable . "http").Body | jsonPath "$.next" | default "" }}'
     - type: log
       params:
-        message: 'Extracted {{ baggageDict . "extract" "count" }} items from page {{ baggageDict . "control" "page" }}'
+        message: 'Extracted {{ variableGet . "extract" "count" }} items from page {{ variableGet . "control" "page" }}'
     - type: range-json
       params:
         source: |
-          {{ baggageDict . "extract" "data" }}
+          {{ variableGet . "extract" "data" }}
         concurrency: 4
         steps:
         - type: log
           params:
-            message: 'Person name -> {{ baggage . "$rangeItem" | toJson | jsonPath "$.name" }}'
+            message: 'Person name -> {{ variable . "$rangeItem" | toJson | jsonPath "$.name" }}'
     - id: control
       type: set
       params:
-        url: '{{ baggageDict . "extract" "next_url" }}'
-        done: '{{ baggageDict . "extract" "next_url" | eq "" }}'
-        page: '{{ (baggageDict . "control" "page") | add 1 }}'
+        url: '{{ variableGet . "extract" "next_url" }}'
+        done: '{{ variableGet . "extract" "next_url" | eq "" }}'
+        page: '{{ (variableGet . "control" "page") | add 1 }}'
     - type: wait
       params:
         duration: 1s

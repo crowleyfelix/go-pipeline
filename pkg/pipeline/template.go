@@ -9,16 +9,16 @@ import (
 )
 
 var templateFuncs = template.FuncMap{
-	"baggage": func(ctx Context, path BaggagePath) (any, error) {
-		result, err := ctx.BaggageItem(path)
+	"variable": func(ctx Scope, path VariablePath) (any, error) {
+		result, err := ctx.Variable(path)
 		if err != nil {
 			return nil, err
 		}
 
 		return result, nil
 	},
-	"baggageDict": func(ctx Context, path BaggagePath, key string) (any, error) {
-		result, err := ctx.BaggageItem(path)
+	"variableGet": func(ctx Scope, path VariablePath, key string) (any, error) {
+		result, err := ctx.Variable(path)
 		if err != nil {
 			return nil, err
 		}

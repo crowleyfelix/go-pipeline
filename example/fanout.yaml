@@ -42,4 +42,4 @@ steps:
           duration: '2s'
 - type: log
   params:
-    message: '{{ baggage . "pipe-set-1" }} - {{ baggage . "pipe-set-2" }} - {{ baggage . "pipe-set-3" }}'
+    message: '{{ variable . "pipe-set-1" }} - {{ variable . "pipe-set-2" }} - {{ variable . "pipe-set-3" }}'

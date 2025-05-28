@@ -19,13 +19,13 @@ var (
 
 func main() {
 	log.SetUp(log.Standard{})
-	http.RegisterProcessor(httplib.DefaultClient)
+	http.RegisterStepExecutor(httplib.DefaultClient)
 
 	pipelines := lo.Must(pipeline.Load(os.DirFS(pipelineDir)))
 
-	ctx := pipeline.NewContext(context.Background(), pipelines)
+	scope := pipeline.NewScope(pipelines)
 
-	_, err := pipelines.Execute(ctx, pipelineIDs...)
+	_, err := pipelines.Execute(context.Background(), scope, pipelineIDs...)
 	if err != nil && err != context.Canceled {
 		log.Fatal(err)
 	}

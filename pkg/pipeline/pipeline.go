@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -17,22 +18,22 @@ type Pipelines struct {
 
 // Execute runs the specified pipelines by their IDs in the given context.
 // It creates a Datadog span for each pipeline execution and returns the updated context or an error if any pipeline fails.
-func (p Pipelines) Execute(ctx Context, ids ...string) (Context, error) {
+func (p Pipelines) Execute(ctx context.Context, scope Scope, ids ...string) (Scope, error) {
 	for _, id := range ids {
 		pipe, ok := p.pipelines[id]
 		if !ok {
-			return ctx, fmt.Errorf("Pipeline %s not found: available %+v", id, lo.Keys(p.pipelines))
+			return scope, fmt.Errorf("Pipeline %s not found: available %+v", id, lo.Keys(p.pipelines))
 		}
 
 		var err error
-		ctx, err = pipe.Execute(ctx)
+		scope, err = pipe.Execute(ctx, scope)
 
 		if err != nil {
-			return ctx, err
+			return scope, err
 		}
 	}
 
-	return ctx, nil
+	return scope, nil
 }
 
 // Pipeline represents a single pipeline with an ID and a sequence of steps to execute.
@@ -80,37 +81,36 @@ func Load(fileSystem fs.FS) (Pipelines, error) {
 
 // Execute runs all the steps in the pipeline in the given context.
 // It logs the execution progress and returns the updated context or an error if any step fails.
-func (p Pipeline) Execute(ctx Context) (Context, error) {
-	return interceptor(ctx, p, func(ctx Context) (Context, error) {
+func (p Pipeline) Execute(ctx context.Context, scope Scope) (Scope, error) {
+	return interceptor(ctx, scope, p, func(ctx context.Context, scope Scope) (Scope, error) {
 		log.Log().Info(ctx, "Executing pipeline %s", p)
 
 		var err error
 
 		if p.Uses != "" {
-			ctx, err = ctx.Pipelines.Execute(ctx, p.Uses)
+			scope, err = scope.Pipelines.Execute(ctx, scope, p.Uses)
 			if err != nil {
-				return ctx, err
+				return scope, err
 			}
 		}
 
 		for _, step := range p.Steps {
-			select {
-			case <-ctx.Done():
-				return ctx, ctx.Err()
-			default:
-				ctx, err = processors.Execute(ctx, step)
+			if scope.Finished {
+				return scope, nil
+			}
 
-				if err != nil {
-					log.Log().Error(ctx, "Error executing step %s: %s", step, err)
+			scope, err = executors.Execute(ctx, scope, step)
 
-					return ctx, err
-				}
+			if err != nil {
+				log.Log().Error(ctx, "Error executing step %s: %s", step, err)
+
+				return scope, err
 			}
 		}
 
 		log.Log().Info(ctx, "Executed pipeline %s", p)
 
-		return ctx, nil
+		return scope, nil
 	})
 }
 

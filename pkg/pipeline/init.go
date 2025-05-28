@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	processors      StepProcessors
+	executors       StepExecutors
 	interceptor     Interceptor
 	stepInterceptor StepInterceptor
 )
@@ -13,9 +13,9 @@ var (
 func init() {
 	expression.RegisterFuncs(templateFuncs)
 
-	processors = StepProcessors{}
+	executors = StepExecutors{}
 
-	RegisterProcessors()
+	RegisterStepExecutors()
 	SetInterceptor(defaultInterceptor)
 	SetStepInterceptor(defaultStepInterceptorfunc)
 }
