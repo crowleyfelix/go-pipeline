@@ -13,6 +13,7 @@ import (
 
 // RegisterProcessors registers all available step processors.
 func RegisterProcessors() {
+	RegisterProcessor("pipeline", PipelineProcesor)
 	RegisterProcessor("set", SetProcessor)
 	RegisterProcessor("range-json", RangeJSONProcessor)
 	RegisterProcessor("wait", WaitProcessor)
@@ -89,6 +90,15 @@ func RegisterProcessor(name string, processor StepProcessor) {
 
 // StepProcessor defines the function signature for a step processor.
 type StepProcessor func(ctx Context, step Step) (Context, error)
+
+func PipelineProcesor(ctx Context, step Step) (Context, error) {
+	params, err := StepParams[Pipeline](step.Params)
+	if err != nil {
+		return ctx, err
+	}
+
+	return params.Execute(ctx)
+}
 
 // # SetProcessor sets a map[string]any in the context.
 // Example YAML:

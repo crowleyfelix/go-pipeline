@@ -37,6 +37,7 @@ func (p Pipelines) Execute(ctx Context, ids ...string) (Context, error) {
 
 // Pipeline represents a single pipeline with an ID and a sequence of steps to execute.
 type Pipeline struct {
+	Uses  string `yaml:"uses"`
 	ID    string `yaml:"id"`
 	Steps []Step `yaml:"steps"`
 }
@@ -85,6 +86,13 @@ func (p Pipeline) Execute(ctx Context) (Context, error) {
 
 		var err error
 
+		if p.Uses != "" {
+			ctx, err = ctx.Pipelines.Execute(ctx, p.Uses)
+			if err != nil {
+				return ctx, err
+			}
+		}
+
 		for _, step := range p.Steps {
 			select {
 			case <-ctx.Done():
@@ -108,7 +116,7 @@ func (p Pipeline) Execute(ctx Context) (Context, error) {
 
 func (p Pipeline) String() string {
 	if p.ID == "" {
-		return "unidentified"
+		return "anonymous"
 	}
 
 	return p.ID

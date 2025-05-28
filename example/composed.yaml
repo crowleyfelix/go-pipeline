@@ -1,0 +1,26 @@
+id: composed-example
+steps:
+- type: pipeline
+  params:
+    uses: set-example
+- type: pipeline
+  params:
+    uses: fanout-example
+- type: pipeline
+  params:
+    uses: log-example
+- type: pipeline
+  params:
+    uses: range-example
+- type: pipeline
+  params:
+    uses: until-example
+- type: pipeline
+  params:
+    uses: wait-example
+- type: pipeline
+  params:
+    uses: http-example
+- type: pipeline
+  params:
+    uses: stop-example

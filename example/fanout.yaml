@@ -21,7 +21,7 @@ steps:
       - type: log
         params:
           message: 'Running pipeline 2'
-      - id: pipe-set-1
+      - id: pipe-set-2
         type: set
         params:
           pipe: 2
@@ -33,7 +33,7 @@ steps:
       - type: log
         params:
           message: 'Running pipeline 3'
-      - id: pipe-set-1
+      - id: pipe-set-3
         type: set
         params:
           pipe: 3
