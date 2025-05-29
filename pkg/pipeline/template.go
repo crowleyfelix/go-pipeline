@@ -44,4 +44,12 @@ var templateFuncs = template.FuncMap{
 
 		return jsonpath.Get(path, src)
 	},
+	"isJson": func(data string) (bool, error) {
+		var js json.RawMessage
+		err := json.Unmarshal([]byte(data), &js)
+		if err != nil {
+			return false, nil
+		}
+		return true, nil
+	},
 }
