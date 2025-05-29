@@ -193,14 +193,15 @@ type RangeParams struct {
 //
 //	id: range-example
 //	steps:
-//	- type: range-json
+//	- id: range
+//	  type: range-json
 //	  params:
 //	  	source: '{{ list 1 2 3 | toJson }}'
 //	  	concurrency: '{{ env "RANGE_CONCURRENCY" | default "2" }}'
 //	  	steps:
 //		- type: log
 //	  	  params:
-//	  		message: '{{ printf "Processing item: %v" ( variable . "$rangeItem" )}}'
+//	  		message: '{{ printf "Processing item %v: %v" ( variable . "range.$index") ( variable . "range" )}}'
 func RangeJSONExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
 	params, err := StepParams[RangeParams](step.Params)
 	if err != nil {
@@ -225,8 +226,8 @@ func RangeJSONExecutor(ctx context.Context, scope Scope, step Step) (Scope, erro
 		return workerParams{
 			Pipeline: params.Pipeline,
 			Variables: map[VariablePath]any{
-				step.VariablePath(PathNodeRangeItem):  item,
-				step.VariablePath(PathNodeRangeIndex): i,
+				step.VariablePath():              item,
+				step.VariablePath(PathNodeIndex): i,
 			},
 		}
 	}, source...)

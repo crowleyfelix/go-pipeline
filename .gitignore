@@ -38,3 +38,4 @@ ginkgo.report
 go.work
 go.work.sum
 .idea/
+.vscode/

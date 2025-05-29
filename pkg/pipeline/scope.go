@@ -8,8 +8,7 @@ import (
 type VariablePathNode string
 
 const (
-	PathNodeRangeItem  VariablePathNode = "$rangeItem"
-	PathNodeRangeIndex VariablePathNode = "$rangeIndex"
+	PathNodeIndex VariablePathNode = "$index"
 )
 
 type VariablePath string

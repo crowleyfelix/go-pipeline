@@ -4,11 +4,12 @@ steps:
   type: set
   params:
     list: '{{ list 1 2 3 4 5 6 7 8 9 10 | toJson }}'
-- type: range-json
+- id: range
+  type: range-json
   params:
     source: '{{ variableGet . "some-step" "list" }}'
     concurrency: '{{ env "RANGE_CONCURRENCY" | default "2" }}'
     steps:
     - type: log
       params:
-        message: '{{ printf "Processing %d item: %v" ( variable . "$rangeIndex" ) ( variable . "$rangeItem" )}}'
+        message: '{{ printf "Processing %d item: %v" ( variable . "range.$index" ) ( variable . "range" )}}'

@@ -23,14 +23,16 @@ flowchart LR
     end
 ```
 
-The step can modify the scope by adding **variables**, and this variable is carried over the whole pipeline. The variable can be retrieved in the scope by its path, and the step id will be used to build the path. Therefore, if multiple steps have the same id, the variable can be replaced.
+The step can modify the scope by adding **variables**, and this variable is carried over the whole pipeline. The variable can be retrieved in the scope by its path, and the step id will be used to build the path. Therefore, if multiple steps have the same id, the variable can be replaced. 
+
+Some steps can set additional metadata variables and the path node should start with "$" (eg.: **step_id.$some_data**).
 
 ```mermaid
 stateDiagram
     direction LR
     state "variable{ id1: somevalue }" as variable1
     state "variable{ id1: somevalue, id2: foo }" as variable2
-    state "variable{ id1: somevalue, id2: modified, id3.$reserved: something }" as variable3
+    state "variable{ id1: somevalue, id2: modified, id3.$index: something }" as variable3
 
     [*] --> variable1
     variable1 --> variable2
@@ -61,14 +63,15 @@ steps:
   type: set
   params:
     list: '{{ list 1 2 3 4 5 6 7 8 9 10 | toJson }}'
-- type: range-json
+- id: range
+  type: range-json
   params:
     source: '{{ variableGet . "some-step" "list" }}'
     concurrency: '{{ env "RANGE_CONCURRENCY" | default "2" }}'
     steps:
     - type: log
       params:
-        message: '{{ printf "Processing %d item: %v" ( variable . "$rangeIndex" ) ( variable . "$rangeItem" )}}'
+        message: '{{ printf "Processing %d item: %v" ( variable . "range.$index" ) ( variable . "range" )}}'
 ```
 
 Load the pipeline passing the folder path, and execute.
