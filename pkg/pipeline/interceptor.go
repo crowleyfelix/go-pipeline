@@ -34,7 +34,7 @@ func defaultInterceptor(ctx context.Context, scope Scope, pipeline Pipeline, exe
 
 func defaultStepInterceptorfunc(ctx context.Context, scope Scope, step Step, executor StepExecutor) (Scope, error) {
 	start := time.Now()
-	scope, err := executor(ctx, scope, step)
+	scope, err := executor.Execute(ctx, scope, step)
 	end := time.Now()
 	log.Log().Info(ctx, "Step %s executed in %s", step, end.Sub(start))
 

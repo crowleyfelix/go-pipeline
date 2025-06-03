@@ -27,12 +27,14 @@ var templateFuncs = template.FuncMap{
 			return nil, err
 		}
 
-		mp, ok := result.(map[string]any)
-		if !ok {
-			return nil, errors.New("expected a map[string]any")
+		switch mapResult := result.(type) {
+		case map[string]any:
+			return mapResult[key], nil
+		case map[string]string:
+			return mapResult[key], nil
 		}
 
-		return mp[key], nil
+		return nil, errors.New("expected a map[string]any or map[string]string")
 	},
 	"jsonPath": func(path string, data string) (any, error) {
 		var src any
@@ -50,6 +52,7 @@ var templateFuncs = template.FuncMap{
 		if err != nil {
 			return false, nil
 		}
+
 		return true, nil
 	},
 }

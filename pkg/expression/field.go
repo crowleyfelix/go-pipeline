@@ -11,64 +11,32 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Field to be evaluated with context.
-type Field[T any] struct {
-	any
-}
-
-func (f *Field[T]) UnmarshalYAML(node *yaml.Node) error {
-	var t T
-
-	err := node.Decode(&t)
-	f.any = t
-
-	return err
-}
-
-func (f *Field[T]) MarshalYAML() (any, error) {
-	return f.any, nil
-}
+// String to be evaluated with context.
+type String string
 
 // Eval the values with the context.
-func (f Field[T]) Eval(ctx context.Context, scope any) (T, error) {
-	var value T
+func (f String) Eval(ctx context.Context, scope any) (string, error) {
+	log.Log().Debug(ctx, "field template: %s", f)
+
+	parsed, err := templ.Parse(string(f))
+	if err != nil {
+		return "", err
+	}
 
 	var nodeBuff bytes.Buffer
-
-	err := yaml.NewEncoder(&nodeBuff).Encode(f.any)
-	if err != nil {
-		return value, err
-	}
-
-	log.Log().Debug(ctx, "field template: %s", nodeBuff.String())
-
-	parsed, err := templ.Parse(nodeBuff.String())
-	if err != nil {
-		return value, err
-	}
-
-	nodeBuff.Reset()
-
 	if err = parsed.Execute(&nodeBuff, scope); err != nil {
-		return value, err
+		return "", err
 	}
 
 	log.Log().Debug(ctx, "field evaluated: %s", nodeBuff.String())
 
-	err = yaml.Unmarshal(nodeBuff.Bytes(), &value)
-	if err != nil {
-		return value, err
-	}
-
-	return value, nil
+	return nodeBuff.String(), nil
 }
 
-type Bool struct {
-	Field[string]
-}
+type Bool String
 
-func (f Bool) Eval(ctx context.Context, scope any) (bool, error) {
-	value, err := f.Field.Eval(ctx, scope)
+func (b Bool) Eval(ctx context.Context, scope any) (bool, error) {
+	value, err := String(b).Eval(ctx, scope)
 
 	if err != nil {
 		return false, err
@@ -81,12 +49,10 @@ func (f Bool) Eval(ctx context.Context, scope any) (bool, error) {
 	return strconv.ParseBool(value)
 }
 
-type Int struct {
-	Field[string]
-}
+type Int String
 
-func (f Int) Eval(ctx context.Context, scope any) (int, error) {
-	value, err := f.Field.Eval(ctx, scope)
+func (i Int) Eval(ctx context.Context, scope any) (int, error) {
+	value, err := String(i).Eval(ctx, scope)
 
 	if err != nil {
 		return 0, err
@@ -104,12 +70,10 @@ func (f Int) Eval(ctx context.Context, scope any) (int, error) {
 	return intValue, nil
 }
 
-type Duration struct {
-	Field[string]
-}
+type Duration String
 
-func (f Duration) Eval(ctx context.Context, scope any) (time.Duration, error) {
-	value, err := f.Field.Eval(ctx, scope)
+func (d Duration) Eval(ctx context.Context, scope any) (time.Duration, error) {
+	value, err := String(d).Eval(ctx, scope)
 
 	if err != nil {
 		return 0, err
@@ -122,14 +86,12 @@ func (f Duration) Eval(ctx context.Context, scope any) (time.Duration, error) {
 	return time.ParseDuration(value)
 }
 
-type JSON[T any] struct {
-	Field[string]
-}
+type JSON[T any] String
 
-func (f JSON[T]) Eval(ctx context.Context, scope any) (T, error) {
+func (j JSON[T]) Eval(ctx context.Context, scope any) (T, error) {
 	var t T
 
-	value, err := f.Field.Eval(ctx, scope)
+	value, err := String(j).Eval(ctx, scope)
 
 	if err != nil {
 		return t, err
@@ -141,4 +103,47 @@ func (f JSON[T]) Eval(ctx context.Context, scope any) (T, error) {
 	}
 
 	return t, nil
+}
+
+type YAML[T any] String
+
+func (f *YAML[T]) UnmarshalYAML(node *yaml.Node) error {
+	blob, err := yaml.Marshal(node)
+	*f = YAML[T](blob)
+
+	return err
+}
+
+func (y YAML[T]) Eval(ctx context.Context, scope any) (T, error) {
+	var t T
+
+	value, err := String(y).Eval(ctx, scope)
+
+	if err != nil {
+		return t, err
+	}
+
+	err = yaml.Unmarshal([]byte(value), &t)
+	if err != nil {
+		return t, err
+	}
+
+	return t, nil
+}
+
+type Map map[string]String
+
+func (m Map) Eval(ctx context.Context, scope any) (map[string]string, error) {
+	mapped := make(map[string]string)
+
+	for k, v := range m {
+		value, err := v.Eval(ctx, scope)
+		if err != nil {
+			return nil, err
+		}
+
+		mapped[k] = value
+	}
+
+	return mapped, nil
 }

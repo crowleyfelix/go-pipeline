@@ -14,14 +14,14 @@ import (
 
 // RegisterStepExecutors registers all available step executors.
 func RegisterStepExecutors() {
-	RegisterStepExecutor("pipeline", PipelineExecutor)
-	RegisterStepExecutor("set", SetExecutor)
-	RegisterStepExecutor("range-json", RangeJSONExecutor)
-	RegisterStepExecutor("wait", WaitExecutor)
-	RegisterStepExecutor("stop", StopExecutor)
-	RegisterStepExecutor("until", UntilExecutor)
-	RegisterStepExecutor("log", LogExecutor)
-	RegisterStepExecutor("fanout", FanoutExecutor)
+	RegisterStepExecutor("pipeline", TypedStepExecutor[Pipeline](PipelineExecutor))
+	RegisterStepExecutor("set", TypedStepExecutor[SetParams](SetExecutor))
+	RegisterStepExecutor("range-json", TypedStepExecutor[RangeJSONParams](RangeJSONExecutor))
+	RegisterStepExecutor("wait", TypedStepExecutor[WaitParams](WaitExecutor))
+	RegisterStepExecutor("stop", TypedStepExecutor[StopParams](StopExecutor))
+	RegisterStepExecutor("until", TypedStepExecutor[UntilParams](UntilExecutor))
+	RegisterStepExecutor("log", TypedStepExecutor[LogParams](LogExecutor))
+	RegisterStepExecutor("fanout", TypedStepExecutor[FanoutParams](FanoutExecutor))
 }
 
 // Step represents a single step in the pipeline with its ID, type, and parameters.
@@ -81,7 +81,12 @@ func (p StepExecutors) Execute(ctx context.Context, scope Scope, step Step) (Sco
 		return scope, fmt.Errorf("unknown step type: %s", step.Type)
 	}
 
-	return stepInterceptor(ctx, scope, step, executor)
+	scope, err := stepInterceptor(ctx, scope, step, executor)
+	if err != nil {
+		err = fmt.Errorf("error executing step %s: %w", step, err)
+	}
+
+	return scope, err
 }
 
 // RegisterStepExecutor registers a step executor function with a given name.
@@ -89,16 +94,34 @@ func RegisterStepExecutor(name string, executor StepExecutor) {
 	executors[name] = executor
 }
 
-// StepExecutor defines the function signature for a step executor.
-type StepExecutor func(ctx context.Context, scope Scope, step Step) (Scope, error)
+type TypedStepExecutor[Params any] func(ctx context.Context, scope Scope, step Step, params Params) (Scope, error)
 
-func PipelineExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
-	params, err := StepParams[Pipeline](step.Params)
+func (f TypedStepExecutor[Params]) Execute(ctx context.Context, scope Scope, step Step) (Scope, error) {
+	var params Params
+
+	blob, err := yaml.Marshal(step.Params)
 	if err != nil {
 		return scope, err
 	}
 
+	if err := yaml.Unmarshal(blob, &params); err != nil {
+		return scope, err
+	}
+
+	return f(ctx, scope, step, params)
+}
+
+// StepExecutor defines the interface for executing a step in the pipeline.
+type StepExecutor interface {
+	Execute(ctx context.Context, scope Scope, step Step) (Scope, error)
+}
+
+func PipelineExecutor(ctx context.Context, scope Scope, step Step, params Pipeline) (Scope, error) {
 	return params.Execute(ctx, scope)
+}
+
+type SetParams struct {
+	expression.YAML[map[string]any] `yaml:",inline"`
 }
 
 // # SetExecutor sets a map[string]any in the context.
@@ -114,12 +137,7 @@ func PipelineExecutor(ctx context.Context, scope Scope, step Step) (Scope, error
 //	  type: set
 //	  params:
 //	    counter: '{{ add (variableGet . "setup" "counter") 10 }}'
-func SetExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
-	params, err := StepParams[expression.Field[map[string]any]](step.Params)
-	if err != nil {
-		return scope, err
-	}
-
+func SetExecutor(ctx context.Context, scope Scope, step Step, params SetParams) (Scope, error) {
 	value, err := params.Eval(ctx, scope)
 	if err != nil {
 		return scope, err
@@ -130,9 +148,9 @@ func SetExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
 
 // StopParams defines the parameters for the StopExecutor.
 type StopParams struct {
-	Condition expression.Bool          `yaml:"condition"`
-	Message   expression.Field[string] `yaml:"message"`
-	IsError   expression.Bool          `yaml:"is_error"`
+	Condition expression.Bool   `yaml:"condition"`
+	Message   expression.String `yaml:"message"`
+	IsError   expression.Bool   `yaml:"is_error"`
 }
 
 // StopExecutor stops the pipeline execution if the condition evaluates to true.
@@ -145,12 +163,7 @@ type StopParams struct {
 //	  	condition: '{{ gt 2 1 | and (eq "true" "true") }}'
 //	  	message: 'Stopping pipeline'
 //	  	is_error: 'true'
-func StopExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
-	params, err := StepParams[StopParams](step.Params)
-	if err != nil {
-		return scope, err
-	}
-
+func StopExecutor(ctx context.Context, scope Scope, step Step, params StopParams) (Scope, error) {
 	stop, err := params.Condition.Eval(ctx, scope)
 	if err != nil {
 		return scope, err
@@ -181,8 +194,8 @@ func StopExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
 	return scope, nil
 }
 
-// RangeParams defines the parameters for the RangeExecutor.
-type RangeParams struct {
+// RangeJSONParams defines the parameters for the RangeExecutor.
+type RangeJSONParams struct {
 	Source      expression.JSON[[]any] `yaml:"source"`
 	Concurrency expression.Int         `yaml:"concurrency"`
 	Pipeline    `yaml:",inline"`
@@ -202,12 +215,7 @@ type RangeParams struct {
 //		- type: log
 //	  	  params:
 //	  		message: '{{ printf "Processing item %v: %v" ( variable . "range.$index") ( variable . "range" )}}'
-func RangeJSONExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
-	params, err := StepParams[RangeParams](step.Params)
-	if err != nil {
-		return scope, err
-	}
-
+func RangeJSONExecutor(ctx context.Context, scope Scope, step Step, params RangeJSONParams) (Scope, error) {
 	source, err := params.Source.Eval(ctx, scope)
 	if err != nil {
 		return scope, err
@@ -235,7 +243,7 @@ func RangeJSONExecutor(ctx context.Context, scope Scope, step Step) (Scope, erro
 
 // LogParams defines the parameters for the LogExecutor.
 type LogParams struct {
-	Message expression.Field[string] `yaml:"message"`
+	Message expression.String `yaml:"message"`
 }
 
 // LogExecutor logs a message to the context logger.
@@ -246,12 +254,7 @@ type LogParams struct {
 //	- type: log
 //	  params:
 //	  	message: '{{ printf "Step %s completed at %s" (variableGet . "some_step" "id") (now | date "2006-01-02 15:04:05") }}'
-func LogExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
-	params, err := StepParams[LogParams](step.Params)
-	if err != nil {
-		return scope, err
-	}
-
+func LogExecutor(ctx context.Context, scope Scope, step Step, params LogParams) (Scope, error) {
 	message, err := params.Message.Eval(ctx, scope)
 	if err != nil {
 		return scope, err
@@ -280,12 +283,7 @@ type UntilParams struct {
 //	  	- type: log
 //	  	  params:
 //	  	 	message: '{{ printf "Counter is %d" (variableGet . "setup" "counter") }}'
-func UntilExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
-	params, err := StepParams[UntilParams](step.Params)
-	if err != nil {
-		return scope, err
-	}
-
+func UntilExecutor(ctx context.Context, scope Scope, step Step, params UntilParams) (Scope, error) {
 	proceed, err := params.Condition.Eval(ctx, scope)
 	if err != nil {
 		return scope, err
@@ -319,12 +317,7 @@ type WaitParams struct {
 //	- type: wait
 //	  params:
 //	    duration: '5s'
-func WaitExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
-	params, err := StepParams[WaitParams](step.Params)
-	if err != nil {
-		return scope, err
-	}
-
+func WaitExecutor(ctx context.Context, scope Scope, step Step, params WaitParams) (Scope, error) {
 	duration, err := params.Duration.Eval(ctx, scope)
 	if err != nil {
 		return scope, err
@@ -358,12 +351,7 @@ type FanoutParams struct {
 //		  - type: log
 //		    params:
 //		      message: 'Running pipeline 2'
-func FanoutExecutor(ctx context.Context, scope Scope, step Step) (Scope, error) {
-	params, err := StepParams[FanoutParams](step.Params)
-	if err != nil {
-		return scope, err
-	}
-
+func FanoutExecutor(ctx context.Context, scope Scope, step Step, params FanoutParams) (Scope, error) {
 	concurrency, err := params.Concurrency.Eval(ctx, scope)
 	if err != nil {
 		return scope, err

@@ -26,8 +26,7 @@ steps:
     - id: extract
       type: set
       params:
-        data: |
-          {{ (variable . "http").Body | jsonPath "$.results[*]" | toJson }}
+        data: '{{ (variable . "http").Body | jsonPath "$.results[*]" | toJson }}'
         count: '{{ (variable . "http").Body | jsonPath "$.results[*]" | len }}'
         next_url: '{{ (variable . "http").Body | jsonPath "$.next" | default "" }}'
     - type: log
@@ -36,13 +35,26 @@ steps:
     - id: range
       type: range-json
       params:
-        source: |
-          {{ variableGet . "extract" "data" }}
-        concurrency: 4
+        source: '{{ variableGet . "extract" "data" }}'
+        concurrency: '{{ env "HTTP_CONCURRENCY" | default 4 }}'
         steps:
+        - id: map
+          type: set
+          params:
+            json: '
+              {{- $json := (variable . "range" | toJson) -}}
+              {
+                "id": {{- jsonPath "$.url" $json | regexFind "people/([0-9]+)" | replace "people/" "" -}},
+                "name": "{{- jsonPath "$.name" $json -}}"
+              }'
+        - type: stop
+          params:
+            condition: '{{ not ( variableGet . "map" "json" | toString | isJson  ) }}'
+            message: 'Error processing item {{ variable . "map" | toJson }}'
+            is_error: true
         - type: log
           params:
-            message: 'Person name -> {{ variable . "range" | toJson | jsonPath "$.name" }}'
+            message: 'Processing item {{ variable . "map" | toJson }}'
     - id: control
       type: set
       params:
