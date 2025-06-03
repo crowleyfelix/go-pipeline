@@ -178,16 +178,11 @@ import (
 )
 
 type CustomParams struct {
-  Name expression.Field[string] `yaml:"name"`
+  Name expression.String `yaml:"name"`
 }
 
 func main() {
-  pipeline.RegisterStepExecutor("custom", func(ctx context.Context, scope pipeline.Scope, step pipeline.Step) (pipeline.Scope, error) {
-    params, err := pipeline.StepParams[CustomParams](step.Params)
-    if err != nil {
-      return scope, err
-    }
-
+  pipeline.RegisterStepExecutor("custom", pipeline.TypedStepExecutor[CustomParams](func(ctx context.Context, scope pipeline.Scope, step pipeline.Step, params CustomParams) (pipeline.Scope, error) {
     name, err := params.Name.Eval(ctx, scope)
     if err != nil {
       return scope, err
@@ -196,7 +191,7 @@ func main() {
     value := fmt.Sprintf("officer %s", name)
 
     return scope.WithVariable(step.VariablePath(), value), nil
-  })
+  }))
 
   expression.RegisterFuncs(template.FuncMap{
     "greeting": func(scope pipeline.Scope, path pipeline.VariablePath) (string, error) {
