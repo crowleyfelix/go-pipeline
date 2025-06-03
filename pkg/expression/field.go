@@ -18,6 +18,11 @@ type String string
 func (f String) Eval(ctx context.Context, scope any) (string, error) {
 	log.Log().Debug(ctx, "field template: %s", f)
 
+	templ, err := templ.Clone()
+	if err != nil {
+		return "", err
+	}
+
 	parsed, err := templ.Parse(string(f))
 	if err != nil {
 		return "", err
