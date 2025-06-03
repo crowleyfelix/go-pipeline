@@ -18,6 +18,7 @@ steps:
       params:
         method: GET
         url: '{{ variableGet . "control" "url" }}'
+        read: true
     - type: stop
       params:
         condition: '{{ ne (variable . "http").StatusCode 200 }}'
@@ -26,9 +27,9 @@ steps:
     - id: extract
       type: set
       params:
-        data: '{{ (variable . "http").Body | jsonPath "$.results[*]" | toJson }}'
-        count: '{{ (variable . "http").Body | jsonPath "$.results[*]" | len }}'
-        next_url: '{{ (variable . "http").Body | jsonPath "$.next" | default "" }}'
+        data: '{{ variable . "http.$body" | jsonPath "$.results[*]" | toJson }}'
+        count: '{{ variable . "http.$body" | jsonPath "$.results[*]" | len }}'
+        next_url: '{{ variable . "http.$body" | jsonPath "$.next" | default "" }}'
     - type: log
       params:
         message: 'Extracted {{ variableGet . "extract" "count" }} items from page {{ variableGet . "control" "page" }}'

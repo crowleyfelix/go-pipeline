@@ -3,6 +3,7 @@ package pipeline
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"text/template"
 
 	"github.com/PaesslerAG/jsonpath"
@@ -54,5 +55,19 @@ var templateFuncs = template.FuncMap{
 		}
 
 		return true, nil
+	},
+	"read": func(reader io.Reader) (string, error) {
+		defer func() {
+			if r, ok := reader.(io.Closer); ok {
+				_ = r.Close()
+			}
+		}()
+
+		data, err := io.ReadAll(reader)
+		if err != nil {
+			return "", err
+		}
+
+		return string(data), nil
 	},
 }

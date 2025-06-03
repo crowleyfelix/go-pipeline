@@ -23,7 +23,7 @@ flowchart LR
     end
 ```
 
-The step can modify the scope by adding **variables**, and this variable is carried over the whole pipeline. The variable can be retrieved in the scope by its path, and the step id will be used to build the path. Therefore, if multiple steps have the same id, the variable can be replaced. 
+The step can modify the scope by adding **variables**, and this variable is carried over the whole pipeline. The variable can be retrieved in the scope by its path, and the step id will be used to build the path. Therefore, if multiple steps have the same id, the variable can be replaced.
 
 Some steps can set additional metadata variables and the path node should start with "$" (eg.: **step_id.$some_data**).
 
@@ -120,7 +120,7 @@ You can see more examples [here](./example/).
 | **range-json**       | `source`           | `json`                | JSON array to iterate over.                                                                       |
 |                      | `concurrency`      | `int`                 | Number of concurrent executions.                                                                  |
 |                      | `steps`            | `[]step`              | Steps to execute for each item in the JSON array.                                                 |
-| **log**              | `message`          | `string`              | Message to log. Can use Go templates for dynamic content.                                          |
+| **log**              | `message`          | `string`              | Message to log.                                          |
 | **until**            | `condition`        | `bool`                | Condition to evaluate for repeating the pipeline.                                                 |
 |                      | `steps`            | `[]step`              | Steps to execute repeatedly until the condition is false.                                         |
 | **wait**             | `duration`         | `duration`            | Duration to wait before proceeding to the next step.
@@ -145,19 +145,20 @@ func main() {
 
 | **Step Type**       | **Parameter**       | **Type**               | **Description**                                                                                     |
 |----------------------|---------------------|------------------------|-----------------------------------------------------------------------------------------------------|
-| **http**            | `url`              | `string`              | The URL to send the HTTP request to. Supports Go templates and pipeline scopes.                  |
+| **http**            | `url`              | `string`              | The URL to send the HTTP request to.                  |
 |                      | `method`           | `string`              | The HTTP method (e.g., GET, POST).                                                                |
-|                      | `body`             | `string`              | The body of the HTTP request. Can use Go templates for dynamic content.                            |
-|                      | `header`           | `map[string]string`   | HTTP headers as key-value pairs.                                                                  |
+|                      | `body`             | `string`              | The body of the HTTP request.                            |
+|                      | `header`           | `map[string][]string`   | HTTP headers as key-value pairs.                                                                  |
+|                      | `read`             | `bool`                  | Indicate if the response should be readed. It sets the body as a string in the `step_id.$body` variable path |
 
 ## Go Template Functions
-
 
 | **Function**         | **Description**                                                                                     | **Example**                                                                                     |
 |-----------------------|-----------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
 | `variable`            | Retrieves a value from the pipeline scope variable using its path.                                  | `{{ variable . "step-id" }}`                                                                   |
 | `variableGet`        | Retrieves a specific key from a map[string]any stored in the pipeline scope variable.                   | `{{ variableGet . "step-id" "key" }}`                                                         |
 | `jsonPath`           | Extracts data from a JSON string using a JSONPath expression.                                        | `{{ jsonPath "$.items[0].name" "{\"items\": [{\"name\": \"example\"}]}" }}`                   |
+| `read`           | It reads an io.Reader.                                        | `{{ read (variable "step-id") }}`  |
 
 Besides the standard library functions, all functions from the [sprig](https://masterminds.github.io/sprig/) library are availble.
 
