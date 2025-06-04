@@ -57,10 +57,10 @@ clean:
 
 .PHONY: run
 run: 
-	@$(GORUN) cmd/*.go
+	@$(GORUN) cmd/pipeline/*.go
 
 run-debug: 
-	@$(GODEBUG) cmd/*.go
+	@$(GODEBUG) cmd/pipeline/*.go
 
 deps:
 	@$(GOMOD) vendor -v
