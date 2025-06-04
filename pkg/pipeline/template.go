@@ -3,7 +3,9 @@ package pipeline
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"os"
 	"text/template"
 
 	"github.com/PaesslerAG/jsonpath"
@@ -69,5 +71,12 @@ var templateFuncs = template.FuncMap{
 		}
 
 		return string(data), nil
+	},
+	"mustEnv": func(key string) (string, error) {
+		value := os.Getenv(key)
+		if value == "" {
+			return "", fmt.Errorf("environment variable %s is not set", key)
+		}
+		return value, nil
 	},
 }
