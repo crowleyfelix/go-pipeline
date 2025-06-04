@@ -33,6 +33,23 @@ type ExecutorParams struct {
 	}] `yaml:",inline"`
 }
 
+// StepExecutor executes an HTTP request based on the provided parameters.
+// It supports setting the HTTP method, URL, headers, and body.
+// If the `read` parameter is true, the response body is read and stored in the pipeline scope.
+//
+// Example YAML:
+//
+//	id: http-example
+//	steps:
+//	- id: http-step
+//	  type: http
+//	  params:
+//	  	url: 'https://api.example.com/data'
+//	  	method: 'GET'
+//	  	header:
+//	  	  Authorization: ['Bearer some-token']
+//	  	  Content-Type: ['application/json']
+//	  	read: true
 func StepExecutor(client Client) pipeline.StepExecutor {
 	return pipeline.TypedStepExecutor[ExecutorParams](
 		func(ctx context.Context, scope pipeline.Scope, step pipeline.Step, p ExecutorParams) (pipeline.Scope, error) {

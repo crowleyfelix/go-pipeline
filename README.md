@@ -137,10 +137,12 @@ eg.:
 import (
   httplib "net/http"
   "github.com/crowleyfelix/go-pipeline/pkg/http"
+  "github.com/crowleyfelix/go-pipeline/pkg/file"
 )
 
 func main() {
   http.RegisterStepExecutor(httplib.DefaultClient)
+  file.RegisterStepExecutors()
 }
 
 ```

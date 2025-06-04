@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/crowleyfelix/go-pipeline/pkg/file"
 	"github.com/crowleyfelix/go-pipeline/pkg/http"
 	"github.com/crowleyfelix/go-pipeline/pkg/log"
 	"github.com/crowleyfelix/go-pipeline/pkg/pipeline"
@@ -20,6 +21,7 @@ var (
 func main() {
 	log.SetUp(log.Standard{})
 	http.RegisterStepExecutor(httplib.DefaultClient)
+	file.RegisterStepExecutors()
 
 	pipelines := lo.Must(pipeline.Load(os.DirFS(pipelineDir)))
 
