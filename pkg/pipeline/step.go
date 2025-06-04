@@ -16,7 +16,7 @@ import (
 func RegisterStepExecutors() {
 	RegisterStepExecutor("pipeline", TypedStepExecutor[Pipeline](PipelineExecutor))
 	RegisterStepExecutor("set", TypedStepExecutor[SetParams](SetExecutor))
-	RegisterStepExecutor("range-json", TypedStepExecutor[RangeJSONParams](RangeJSONExecutor))
+	RegisterStepExecutor("range", TypedStepExecutor[RangeParams](RangeExecutor))
 	RegisterStepExecutor("wait", TypedStepExecutor[WaitParams](WaitExecutor))
 	RegisterStepExecutor("stop", TypedStepExecutor[StopParams](StopExecutor))
 	RegisterStepExecutor("until", TypedStepExecutor[UntilParams](UntilExecutor))
@@ -194,31 +194,55 @@ func StopExecutor(ctx context.Context, scope Scope, step Step, params StopParams
 	return scope, nil
 }
 
-// RangeJSONParams defines the parameters for the RangeExecutor.
-type RangeJSONParams struct {
-	Source      expression.JSON[[]any] `yaml:"source"`
+// RangeParams defines the parameters for the RangeExecutor.
+type RangeParams struct {
+	Items       []any                  `yaml:"items"`
+	Variable    VariablePath           `yaml:"variable"`
+	JSON        expression.JSON[[]any] `yaml:"json"`
 	Concurrency expression.Int         `yaml:"concurrency"`
 	Pipeline    `yaml:",inline"`
 }
 
-// RangeJSONExecutor executes a pipeline for each item in the json source with optional concurrency.
+// RangeExecutor executes a pipeline for each item in the source with optional concurrency.
 // Example YAML:
 //
 //	id: range-example
 //	steps:
 //	- id: range
-//	  type: range-json
+//	  type: range
 //	  params:
-//	  	source: '{{ list 1 2 3 | toJson }}'
+//		items: [1, 2, 3]
+//	  	variable: 'step-id'
+//	  	json: '{{ list 4 5 6 | toJson }}'
 //	  	concurrency: '{{ env "RANGE_CONCURRENCY" | default "2" }}'
 //	  	steps:
 //		- type: log
 //	  	  params:
 //	  		message: '{{ printf "Processing item %v: %v" ( variable . "range.$index") ( variable . "range" )}}'
-func RangeJSONExecutor(ctx context.Context, scope Scope, step Step, params RangeJSONParams) (Scope, error) {
-	source, err := params.Source.Eval(ctx, scope)
-	if err != nil {
-		return scope, err
+func RangeExecutor(ctx context.Context, scope Scope, step Step, params RangeParams) (Scope, error) {
+	items := params.Items
+
+	if params.Variable != "" {
+		variable, err := scope.Variable(params.Variable)
+		if err != nil {
+			return scope, err
+		}
+
+		v, ok := variable.([]any)
+		if !ok {
+			return scope, fmt.Errorf("variable %s is not a slice", params.Variable)
+		}
+
+		items = append(items, v)
+	}
+
+	if params.JSON != "" {
+		json, err := params.JSON.Eval(ctx, scope)
+		if err != nil {
+			return scope, err
+		}
+
+		items = append(items, json...)
 	}
 
 	concurrency, err := params.Concurrency.Eval(ctx, scope)
@@ -238,7 +262,7 @@ func RangeJSONExecutor(ctx context.Context, scope Scope, step Step, params Range
 				step.VariablePath(PathNodeIndex): i,
 			},
 		}
-	}, source...)
+	}, items...)
 }
 
 // LogParams defines the parameters for the LogExecutor.

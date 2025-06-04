@@ -64,9 +64,9 @@ steps:
   params:
     list: '{{ list 1 2 3 4 5 6 7 8 9 10 | toJson }}'
 - id: range
-  type: range-json
+  type: range
   params:
-    source: '{{ variableGet . "some-step" "list" }}'
+    json: '{{ variableGet . "some-step" "list" }}'
     concurrency: '{{ env "RANGE_CONCURRENCY" | default "2" }}'
     steps:
     - type: log
@@ -117,7 +117,9 @@ You can see more examples [here](./example/).
 | **stop**             | `condition`        | `bool`                | Condition to stop the pipeline.                                                                   |
 |                      | `message`          | `string`              | Message to log when stopping the pipeline.                                                        |
 |                      | `is_error`         | `bool`                | Whether stopping the pipeline should be treated as an error.                                       |
-| **range-json**       | `source`           | `json`                | JSON array to iterate over.                                                                       |
+| **range**            | `json`             | `json`                | JSON array to iterate over.                                                                       |
+|                      | `items`            | `[]any`               | Any items to iterate over.                                                                  |
+|                      | `variable`         | `string`              | The variable path with []any to iterate over.                                                                  |
 |                      | `concurrency`      | `int`                 | Number of concurrent executions.                                                                  |
 |                      | `steps`            | `[]step`              | Steps to execute for each item in the JSON array.                                                 |
 | **log**              | `message`          | `string`              | Message to log.                                          |

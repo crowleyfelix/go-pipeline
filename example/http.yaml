@@ -34,9 +34,9 @@ steps:
       params:
         message: 'Extracted {{ variableGet . "extract" "count" }} items from page {{ variableGet . "control" "page" }}'
     - id: range
-      type: range-json
+      type: range
       params:
-        source: '{{ variableGet . "extract" "data" }}'
+        json: '{{ variableGet . "extract" "data" }}'
         concurrency: '{{ env "HTTP_CONCURRENCY" | default 4 }}'
         steps:
         - id: map
