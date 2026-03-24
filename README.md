@@ -23,6 +23,21 @@ flowchart LR
     end
 ```
 
+Nested execution happens when a `pipeline` step calls another pipeline through `uses`. The child pipeline runs with the current scope and returns control to the parent.
+
+```mermaid
+flowchart LR
+  P0["Parent pipeline start"] --> P1["Step: set context"]
+  P1 --> P2["Step: pipeline uses: child-a id: run-a"]
+
+  subgraph CHILD_A["Child pipeline child-a"]
+    C1["Step: set"] --> C2["Step: log"]
+  end
+
+  P2 --> C1
+  C2 --> P3["Parent pipeline end"]
+```
+
 The step can modify the scope by adding **variables**, and this variable is carried over the whole pipeline. The variable can be retrieved in the scope by its path, and the step id will be used to build the path. Therefore, if multiple steps have the same id, the variable can be replaced.
 
 Some steps can set additional metadata variables and the path node should start with "$" (eg.: **step_id.$some_data**).
@@ -147,6 +162,8 @@ You can see more examples [here](./example/).
 |                      | `concurrency`      | `int`                 | Number of concurrent executions.                                                                  |
 |                      | `steps`            | `[]step`              | Steps to execute for each item in the JSON array.                                                 |
 | **log**              | `message`          | `string`              | Message to log.                                          |
+| **switch**           | `cases`            | `[]switch_case`       | Ordered list of conditional branches; the first true case is executed.                             |
+|                      | `default`          | `pipeline`            | Optional fallback pipeline when no case condition is true.                                          |
 | **until**            | `condition`        | `bool`                | Condition to evaluate for repeating the pipeline.                                                 |
 |                      | `steps`            | `[]step`              | Steps to execute repeatedly until the condition is false.                                         |
 | **wait**             | `duration`         | `duration`            | Duration to wait before proceeding to the next step.
@@ -189,7 +206,9 @@ func main() {
 | `variable`            | Retrieves a value from the pipeline scope variable using its path.                                  | `{{ variable . "step-id" }}`                                                                   |
 | `variableGet`        | Retrieves a specific key from a map[string]any stored in the pipeline scope variable.                   | `{{ variableGet . "step-id" "key" }}`                                                         |
 | `jsonPath`           | Extracts data from a JSON string using a JSONPath expression.                                        | `{{ jsonPath "$.items[0].name" "{\"items\": [{\"name\": \"example\"}]}" }}`                   |
+| `isJson`             | Checks if a string is valid JSON.                                                                    | `{{ isJson "{\"name\":\"bob\"}" }}`                                                     |
 | `read`           | It reads an io.Reader.                                        | `{{ read (variable "step-id") }}`  |
+| `mustEnv`            | Reads an environment variable and fails when it is missing.                                          | `{{ mustEnv "API_KEY" }}`                                                                       |
 
 Besides the standard library functions, all functions from the [sprig](https://masterminds.github.io/sprig/) library are availble.
 

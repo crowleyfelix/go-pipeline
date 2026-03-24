@@ -77,6 +77,7 @@ var templateFuncs = template.FuncMap{
 		if value == "" {
 			return "", fmt.Errorf("environment variable %s is not set", key)
 		}
+
 		return value, nil
 	},
 }

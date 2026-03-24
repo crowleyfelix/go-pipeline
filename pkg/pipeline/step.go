@@ -16,6 +16,7 @@ import (
 func RegisterStepExecutors() {
 	RegisterStepExecutor("pipeline", TypedStepExecutor[Pipeline](PipelineExecutor))
 	RegisterStepExecutor("set", TypedStepExecutor[SetParams](SetExecutor))
+	RegisterStepExecutor("switch", TypedStepExecutor[SwitchParams](SwitchExecutor))
 	RegisterStepExecutor("range", TypedStepExecutor[RangeParams](RangeExecutor))
 	RegisterStepExecutor("wait", TypedStepExecutor[WaitParams](WaitExecutor))
 	RegisterStepExecutor("stop", TypedStepExecutor[StopParams](StopExecutor))
@@ -124,6 +125,16 @@ type SetParams struct {
 	expression.YAML[map[string]any] `yaml:",inline"`
 }
 
+type SwitchCase struct {
+	Condition expression.Bool `yaml:"condition"`
+	Pipeline  `yaml:",inline"`
+}
+
+type SwitchParams struct {
+	Cases   []SwitchCase `yaml:"cases"`
+	Default Pipeline     `yaml:"default"`
+}
+
 // # SetExecutor sets a map[string]any in the context.
 // Example YAML:
 //
@@ -144,6 +155,44 @@ func SetExecutor(ctx context.Context, scope Scope, step Step, params SetParams) 
 	}
 
 	return scope.WithVariable(step.VariablePath(), value), nil
+}
+
+// SwitchExecutor evaluates cases in order and executes the first matching pipeline.
+// If no case matches, it executes the optional default pipeline when provided.
+// Example YAML:
+//
+//	name: switch-example
+//	steps:
+//	- type: switch
+//	  params:
+//	    cases:
+//	    - condition: '{{ eq (variableGet . "setup" "env") "prod" }}'
+//	      steps:
+//	      - type: log
+//	        params:
+//	          message: 'running prod flow'
+//	    default:
+//	      steps:
+//	      - type: log
+//	        params:
+//	          message: 'running default flow'
+func SwitchExecutor(ctx context.Context, scope Scope, step Step, params SwitchParams) (Scope, error) {
+	for _, current := range params.Cases {
+		matches, err := current.Condition.Eval(ctx, scope)
+		if err != nil {
+			return scope, err
+		}
+
+		if matches {
+			return current.Execute(ctx, scope)
+		}
+	}
+
+	if params.Default.Uses == "" && len(params.Default.Steps) == 0 {
+		return scope, nil
+	}
+
+	return params.Default.Execute(ctx, scope)
 }
 
 // StopParams defines the parameters for the StopExecutor.

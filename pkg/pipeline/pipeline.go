@@ -91,6 +91,7 @@ func Load(fileSystem fs.FS) (Pipelines, error) {
 // It logs the execution progress and returns the updated context or an error if any step fails.
 func (p Pipeline) Execute(ctx context.Context, scope Scope) (Scope, error) {
 	baseNamespace := append([]VariablePathNode{}, scope.namespace...)
+
 	if p.ID != "" {
 		scope = scope.WithNamespace(VariablePathNode(p.ID))
 	}

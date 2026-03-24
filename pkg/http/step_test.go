@@ -21,6 +21,7 @@ func (m mockClient) Do(*nethttp.Request) (*nethttp.Response, error) {
 
 func TestStepExecutor(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name           string
 		responseCode   int

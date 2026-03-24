@@ -61,6 +61,7 @@ func (c Scope) WithVariables(items map[VariablePath]any) Scope {
 func (c Scope) Clone() Scope {
 	clone := c
 	clone.variables = make(map[VariablePath]any)
+
 	clone.namespace = append([]VariablePathNode{}, c.namespace...)
 
 	for k, v := range c.variables {
@@ -127,9 +128,11 @@ func (c Scope) candidates(path VariablePath) []VariablePath {
 
 	for i := len(c.namespace); i > 0; i-- {
 		prefix := joinNodes(c.namespace[:i])
+
 		candidate := VariablePath(prefix + "." + pathStr)
 		if !seen[candidate] {
 			seen[candidate] = true
+
 			all = append(all, candidate)
 		}
 	}

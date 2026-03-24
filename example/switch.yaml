@@ -1,0 +1,40 @@
+name: switch-example
+description: Execute the first matching branch from ordered switch cases.
+steps:
+- id: setup
+  type: set
+  params:
+    mode: 'staging'
+- type: switch
+  params:
+    cases:
+    - condition: '{{ eq (variableGet . "setup" "mode") "prod" }}'
+      steps:
+      - id: result
+        type: set
+        params:
+          branch: 'prod'
+      - type: log
+        params:
+          message: 'Running production branch'
+    - condition: '{{ eq (variableGet . "setup" "mode") "staging" }}'
+      steps:
+      - id: result
+        type: set
+        params:
+          branch: 'staging'
+      - type: log
+        params:
+          message: 'Running staging branch'
+    default:
+      steps:
+      - id: result
+        type: set
+        params:
+          branch: 'default'
+      - type: log
+        params:
+          message: 'Running default branch'
+- type: log
+  params:
+    message: 'Selected branch: {{ variableGet . "result" "branch" }}'

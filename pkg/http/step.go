@@ -101,9 +101,9 @@ func StepExecutor(client Client) pipeline.StepExecutor {
 					}
 				}()
 
-				blob, err := io.ReadAll(resp.Body)
-				if err != nil {
-					return scope, err
+				blob, readErr := io.ReadAll(resp.Body)
+				if readErr != nil {
+					return scope, readErr
 				}
 
 				variables[step.VariablePath(VariablePathNodeBody)] = string(blob)

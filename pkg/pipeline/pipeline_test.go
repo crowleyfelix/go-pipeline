@@ -114,6 +114,7 @@ func TestPipelineNamespaces(t *testing.T) {
 		}
 
 		scope := NewScope(pipelines)
+
 		result, err := pipelines.Execute(context.Background(), scope, "main")
 		if !assert.NoError(t, err) {
 			return
@@ -202,6 +203,7 @@ func TestPipelineNamespaces(t *testing.T) {
 		}
 
 		scope := NewScope(pipelines)
+
 		result, err := pipelines.Execute(context.Background(), scope, "main")
 		if !assert.NoError(t, err) {
 			return
@@ -252,6 +254,7 @@ func TestPipelineNamespaces(t *testing.T) {
 		}
 
 		scope := NewScope(pipelines)
+
 		result, err := pipelines.Execute(context.Background(), scope, "main")
 		if !assert.NoError(t, err) {
 			return

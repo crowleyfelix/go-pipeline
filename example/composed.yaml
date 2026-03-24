@@ -22,6 +22,9 @@ steps:
     uses: wait-example
 - type: pipeline
   params:
+    uses: switch-example
+- type: pipeline
+  params:
     uses: http-example
 - type: log
   params:
