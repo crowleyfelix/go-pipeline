@@ -20,11 +20,10 @@ steps:
         method: GET
         url: '{{ variableGet . "control" "url" }}'
         read: true
-    - type: stop
-      params:
-        condition: '{{ ne (variable . "http").StatusCode 200 }}'
-        message: 'Error on request {{ variable . "http" | toJson }}'
-        is_error: true
+        stop:
+          condition: '{{ ne (variable . "http").StatusCode 200 }}'
+          message: 'Error on request {{ variable . "http" | toJson }}'
+          is_error: true
     - id: extract
       type: set
       params:

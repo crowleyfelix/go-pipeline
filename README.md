@@ -75,7 +75,7 @@ steps:
         message: '{{ printf "Processing %d item: %v" ( variable . "range.$index" ) ( variable . "range" )}}'
 ```
 
-To compose pipelines, use the `pipeline` step and point `uses` to other pipeline IDs.
+To compose pipelines, use the `pipeline` step and point `uses` to other pipeline IDs. The same scope/context is preserved and passed forward between each composed pipeline execution.
 
 ```yaml
 id: composed-example
@@ -172,6 +172,9 @@ func main() {
 |                      | `body`             | `string`              | The body of the HTTP request.                            |
 |                      | `header`           | `map[string][]string`   | HTTP headers as key-value pairs.                                                                  |
 |                      | `read`             | `bool`                  | Indicate if the response should be readed. It sets the body as a string in the `step_id.$body` variable path |
+|                      | `stop.condition`   | `bool`                  | Condition evaluated after the request; if true, the pipeline is stopped.                         |
+|                      | `stop.message`     | `string`                | Message used when `stop.condition` is true.                                                       |
+|                      | `stop.is_error`    | `bool`                  | Controls whether stopping should also return an error.                                            |
 
 ## Go Template Functions
 
