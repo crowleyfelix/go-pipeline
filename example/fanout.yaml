@@ -1,11 +1,12 @@
-id: fanout-example
+name: fanout-example
 description: Execute multiple nested pipelines concurrently and aggregate their outputs.
 steps:
 - type: fanout
   params:
     concurrency: '2'
     pipelines:
-    - id: 'pipe1'
+    - name: 'pipe1'
+      id: 'pipe1'
       steps:
       - type: log
         params:
@@ -17,7 +18,8 @@ steps:
       - type: wait
         params:
           duration: '5s'
-    - id: 'pipe2'
+    - name: 'pipe2'
+      id: 'pipe2'
       steps:
       - type: log
         params:
@@ -29,7 +31,8 @@ steps:
       - type: wait
         params:
           duration: '3s'
-    - id: 'pipe3'
+    - name: 'pipe3'
+      id: 'pipe3'
       steps:
       - type: log
         params:
@@ -43,4 +46,4 @@ steps:
           duration: '2s'
 - type: log
   params:
-    message: '{{ variable . "pipe-set-1" }} - {{ variable . "pipe-set-2" }} - {{ variable . "pipe-set-3" }}'
+    message: '{{ variableGet . "pipe1.pipe-set-1" "pipe" }} - {{ variableGet . "pipe2.pipe-set-2" "pipe" }} - {{ variableGet . "pipe3.pipe-set-3" "pipe" }}'

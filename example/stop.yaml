@@ -1,4 +1,4 @@
-id: 'stop-example'
+name: 'stop-example'
 description: Demonstrate conditional pipeline stop behavior.
 steps: 
 - type: stop

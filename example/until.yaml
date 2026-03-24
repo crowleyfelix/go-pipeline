@@ -1,4 +1,4 @@
-id: until-example
+name: until-example
 description: Repeat steps until a counter reaches a target value.
 steps:
 - id: setup

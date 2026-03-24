@@ -1,4 +1,4 @@
-id: range-example
+name: range-example
 description: Iterate over list and JSON items with configurable concurrency.
 steps:   
 - id: some-step

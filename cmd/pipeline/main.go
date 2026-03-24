@@ -15,7 +15,7 @@ import (
 
 var (
 	pipelineDir = os.Getenv("PIPELINE_DIR")
-	pipelineIDs = strings.Split(os.Getenv("PIPELINE_IDS"), ",")
+	pipelineNames = strings.Split(os.Getenv("PIPELINE_NAMES"), ",")
 )
 
 func main() {
@@ -27,7 +27,7 @@ func main() {
 
 	scope := pipeline.NewScope(pipelines)
 
-	_, err := pipelines.Execute(context.Background(), scope, pipelineIDs...)
+	_, err := pipelines.Execute(context.Background(), scope, pipelineNames...)
 	if err != nil && err != context.Canceled {
 		log.Fatal(err)
 	}

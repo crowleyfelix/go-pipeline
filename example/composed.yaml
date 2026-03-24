@@ -1,8 +1,9 @@
-id: composed-example
+name: composed-example
 description: Compose and execute all example pipelines in sequence.
 steps:
 - type: pipeline
   params:
+    id: set-run
     uses: set-example
 - type: pipeline
   params:
@@ -22,6 +23,9 @@ steps:
 - type: pipeline
   params:
     uses: http-example
+- type: log
+  params:
+    message: '{{ printf "set=%v fanout=%v" (variableGet . "set-run.setup" "counter") (variableGet . "pipe1.pipe-set-1" "pipe") }}'
 - type: pipeline
   params:
     uses: stop-example

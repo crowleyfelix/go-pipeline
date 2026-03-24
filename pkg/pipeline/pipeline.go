@@ -16,13 +16,13 @@ type Pipelines struct {
 	pipelines map[string]Pipeline
 }
 
-// Execute runs the specified pipelines by their IDs in the given context.
+// Execute runs the specified pipelines by their names in the given context.
 // It creates a Datadog span for each pipeline execution and returns the updated context or an error if any pipeline fails.
-func (p Pipelines) Execute(ctx context.Context, scope Scope, ids ...string) (Scope, error) {
-	for _, id := range ids {
-		pipe, ok := p.pipelines[id]
+func (p Pipelines) Execute(ctx context.Context, scope Scope, names ...string) (Scope, error) {
+	for _, name := range names {
+		pipe, ok := p.pipelines[name]
 		if !ok {
-			return scope, fmt.Errorf("Pipeline %s not found: available %+v", id, lo.Keys(p.pipelines))
+			return scope, fmt.Errorf("Pipeline %s not found: available %+v", name, lo.Keys(p.pipelines))
 		}
 
 		var err error
@@ -40,12 +40,13 @@ func (p Pipelines) Execute(ctx context.Context, scope Scope, ids ...string) (Sco
 type Pipeline struct {
 	Uses        string `yaml:"uses"`
 	ID          string `yaml:"id"`
+	Name        string `yaml:"name"`
 	Description string `yaml:"description"`
 	Steps       []Step `yaml:"steps"`
 }
 
 // Load creates a new Pipelines instance by loading pipeline definitions from the provided file system.
-// It reads all YAML files, unmarshals them into Pipeline objects, and maps them by their IDs.
+// It reads all YAML files, unmarshals them into Pipeline objects, and maps them by their names.
 func Load(fileSystem fs.FS) (Pipelines, error) {
 	pipelines := make(map[string]Pipeline)
 
@@ -69,7 +70,11 @@ func Load(fileSystem fs.FS) (Pipelines, error) {
 			return err
 		}
 
-		pipelines[pipe.ID] = pipe
+		if pipe.Name == "" {
+			return fmt.Errorf("pipeline name is required in file %s", name)
+		}
+
+		pipelines[pipe.Name] = pipe
 
 		return nil
 	})
@@ -85,7 +90,12 @@ func Load(fileSystem fs.FS) (Pipelines, error) {
 // Execute runs all the steps in the pipeline in the given context.
 // It logs the execution progress and returns the updated context or an error if any step fails.
 func (p Pipeline) Execute(ctx context.Context, scope Scope) (Scope, error) {
-	return interceptor(ctx, scope, p, func(ctx context.Context, scope Scope) (Scope, error) {
+	baseNamespace := append([]VariablePathNode{}, scope.namespace...)
+	if p.ID != "" {
+		scope = scope.WithNamespace(VariablePathNode(p.ID))
+	}
+
+	result, err := interceptor(ctx, scope, p, func(ctx context.Context, scope Scope) (Scope, error) {
 		log.Log().Info(ctx, "Executing pipeline %s", p)
 
 		var err error
@@ -115,12 +125,20 @@ func (p Pipeline) Execute(ctx context.Context, scope Scope) (Scope, error) {
 
 		return scope, nil
 	})
+
+	result.namespace = baseNamespace
+
+	return result, err
 }
 
 func (p Pipeline) String() string {
-	if p.ID == "" {
+	if p.ID != "" {
+		return p.ID
+	}
+
+	if p.Name == "" {
 		return "anonymous"
 	}
 
-	return p.ID
+	return p.Name
 }

@@ -1,4 +1,4 @@
-id: wait-example
+name: wait-example
 description: Log and then pause execution for a fixed duration.
 steps:
 - type: log

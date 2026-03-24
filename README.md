@@ -57,7 +57,7 @@ stateDiagram
 Create an YAML with the pipeline definition.
 
 ```yaml
-id: range-example
+name: range-example
 description: Process a numeric list with range and log each item.
 steps:   
 - id: some-step
@@ -75,14 +75,17 @@ steps:
         message: '{{ printf "Processing %d item: %v" ( variable . "range.$index" ) ( variable . "range" )}}'
 ```
 
-To compose pipelines, use the `pipeline` step and point `uses` to other pipeline IDs. The same scope/context is preserved and passed forward between each composed pipeline execution.
+To compose pipelines, use the `pipeline` step and point `uses` to other pipeline names. The same scope/context is preserved and passed forward between each composed pipeline execution.
+
+If you set an `id` inside `pipeline` step params, that value is used as a namespace prefix. If `id` is omitted, variables stay in the parent namespace.
 
 ```yaml
-id: composed-example
+name: composed-example
 description: Compose and execute multiple pipelines in sequence.
 steps:
 - type: pipeline
   params:
+    id: set-run
     uses: set-example
 - type: pipeline
   params:
@@ -90,6 +93,9 @@ steps:
 - type: pipeline
   params:
     uses: log-example
+- type: log
+  params:
+    message: '{{ printf "set counter=%v" (variableGet . "set-run.setup" "counter") }}'
 ```
 
 Load the pipeline passing the folder path, and execute.
@@ -120,7 +126,7 @@ func main() {
 or execute the cli
 
 ```bash
-PIPELINE_FOLDER=./example PIPELINE_IDS=range-example go run cmd/*.go
+PIPELINE_DIR=./example PIPELINE_NAMES=range-example go run cmd/pipeline/*.go
 ```
 
 You can see more examples [here](./example/).
@@ -232,7 +238,7 @@ func main() {
 And the registered plugins can be used like this
 
 ```yaml
-id: my-pipeline
+name: my-pipeline
 description: Example pipeline using a custom step.
 steps:
 - id: previous-step

@@ -9,8 +9,8 @@
 ## Architecture
 - CLI entrypoint is `cmd/pipeline/main.go`.
 - Core execution engine lives in `pkg/pipeline`:
-  - `pipeline.Load` reads `*.yaml` files from the configured FS and indexes pipelines by `id`.
-  - `Pipelines.Execute` orchestrates selected pipeline IDs in order.
+  - `pipeline.Load` reads `*.yaml` files from the configured FS and indexes pipelines by `name`.
+  - `Pipelines.Execute` orchestrates selected pipeline names in order.
   - `Pipeline.Execute` runs `uses` first (if set), then executes steps sequentially unless `scope.Finished`.
   - Step execution is registry-based (`RegisterStepExecutor`) with typed adapters (`TypedStepExecutor`).
   - Interceptor hooks exist for pipeline and step timing/logging (`pkg/pipeline/interceptor.go`).
@@ -28,8 +28,8 @@
 - Environment/development bootstrap: see `docs/CONTRIBUTING.md` (`make init`, `make docker-up run`).
 
 ## Conventions
-- Pipeline definitions are YAML files with top-level `id` and `steps`.
-- Step IDs become variable path prefixes in scope. Reusing step IDs can overwrite values.
+- Pipeline definitions are YAML files with top-level `name` and `steps`.
+- Variable paths are namespaced only when a pipeline `id` is set, and step IDs are appended inside that namespace (for example `main.child.setup`). Reusing IDs in the same namespace can overwrite values.
 - Metadata nodes use `$` prefixes (for example `step_id.$body`, `range.$index`).
 - Step params are template expressions (Go `text/template` + Sprig + custom functions). Prefer existing functions:
   - `variable`
@@ -42,6 +42,6 @@
   - Add or update an example under `example/`.
 
 ## Known Pitfalls
-- CLI env vars used by code are `PIPELINE_DIR` and `PIPELINE_IDS` (comma-separated).
+- CLI env vars used by code are `PIPELINE_DIR` and `PIPELINE_NAMES` (comma-separated).
 - `pipeline.Load` recursively loads `*.yaml` and `*.yml` from nested folders under the provided FS root.
 - HTTP and file plugin steps are unavailable unless `http.RegisterStepExecutor(...)` and `file.RegisterStepExecutors()` are called before execution.

@@ -1,4 +1,4 @@
-id: http-example
+name: http-example
 description: Paginate an HTTP API, transform each item, and process results concurrently.
 steps:
 - id: control
