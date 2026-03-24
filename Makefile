@@ -36,7 +36,7 @@ build: deps
 
 .PHONY: test
 test:
-	@$(GOTEST) -cover --coverpkg=./... ./...
+	@$(GOTEST) -cover --coverpkg=./... --coverprofile=coverprofile.out ./...
 	@$(COVERAGE_EXCLUDE_FILES) > temp.coverprofile.out
 	@cat temp.coverprofile.out > coverprofile.out
 	@rm -r temp.coverprofile.out
