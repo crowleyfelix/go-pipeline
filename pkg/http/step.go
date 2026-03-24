@@ -29,6 +29,7 @@ type ExecutorParams struct {
 	Body   expression.String   `yaml:"body"`
 	Header http.Header         `yaml:"header"`
 	Read   bool                `yaml:"read"`
+	Set    pipeline.SetParams  `yaml:"set"`
 	Stop   pipeline.StopParams `yaml:"stop"`
 }
 
@@ -49,6 +50,8 @@ type ExecutorParams struct {
 //	  	  Authorization: ['Bearer some-token']
 //	  	  Content-Type: ['application/json']
 //	  	read: true
+//	  	set:
+//	  	  status: '{{ (variable . "http-step").StatusCode }}'
 //	  stop:
 //	    condition: '{{ ne (variable . "http-step").StatusCode 200 }}'
 //	    message: 'unexpected response status'
@@ -118,6 +121,13 @@ func StepExecutor(client Client) pipeline.StepExecutor {
 
 			if stop {
 				return pipeline.StopExecutor(ctx, scope, step, p.Stop)
+			}
+
+			if string(p.Set.YAML) != "" {
+				scope, err = pipeline.SetExecutor(ctx, scope, step, p.Set)
+				if err != nil {
+					return scope, err
+				}
 			}
 
 			return scope, nil

@@ -195,6 +195,7 @@ func main() {
 |                      | `body`             | `string`              | The body of the HTTP request.                            |
 |                      | `header`           | `map[string][]string`   | HTTP headers as key-value pairs.                                                                  |
 |                      | `read`             | `bool`                  | Indicate if the response should be readed. It sets the body as a string in the `step_id.$body` variable path |
+|                      | `set`              | `map[string]any`        | Optional key-value map evaluated like the `set` step and stored under `step_id` in the http step. If its not set, the http.Response is setted in the scope variable. |
 |                      | `stop.condition`   | `bool`                  | Condition evaluated after the request; if true, the pipeline is stopped.                         |
 |                      | `stop.message`     | `string`                | Message used when `stop.condition` is true.                                                       |
 |                      | `stop.is_error`    | `bool`                  | Controls whether stopping should also return an error.                                            |

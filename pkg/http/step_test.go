@@ -121,3 +121,55 @@ func TestStepExecutor(t *testing.T) {
 		})
 	}
 }
+
+func TestStepExecutor_SetParams(t *testing.T) {
+	t.Parallel()
+
+	executor := StepExecutor(mockClient{
+		response: &nethttp.Response{
+			StatusCode: 200,
+			Body:       io.NopCloser(strings.NewReader(`{"ok":true}`)),
+			Header:     nethttp.Header{},
+		},
+	})
+
+	step := pipeline.Step{
+		ID:   "http",
+		Type: "http",
+		Params: map[string]any{
+			"url":    "https://example.com",
+			"method": "GET",
+			"read":   true,
+			"set": map[string]any{
+				"status": `{{ (variable . "http").StatusCode }}`,
+				"ok":     `{{ eq (variable . "http").StatusCode 200 }}`,
+			},
+		},
+	}
+
+	scope := pipeline.NewScope(pipeline.Pipelines{})
+	result, err := executor.Execute(context.Background(), scope, step)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	value, err := result.Variable("http")
+	if err != nil {
+		t.Fatalf("expected set value in scope: %v", err)
+	}
+
+	values, ok := value.(map[string]any)
+	if !ok {
+		t.Fatalf("unexpected value type: %#v", value)
+	}
+
+	status, ok := values["status"].(string)
+	if !ok || status != "200" {
+		t.Fatalf("unexpected status value: %#v", values["status"])
+	}
+
+	isOK, ok := values["ok"].(string)
+	if !ok || isOK != "true" {
+		t.Fatalf("unexpected ok value: %#v", values["ok"])
+	}
+}
