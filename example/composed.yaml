@@ -1,4 +1,5 @@
 id: composed-example
+description: Compose and execute all example pipelines in sequence.
 steps:
 - type: pipeline
   params:

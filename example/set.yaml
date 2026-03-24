@@ -1,4 +1,5 @@
 id: set-example
+description: Set and update scope variables across sequential steps.
 steps:
 - id: 'setup'
   type: set

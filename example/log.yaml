@@ -1,4 +1,5 @@
 id: log-example
+description: Log a formatted message with the current timestamp.
 steps:  
 - type: log
   params:

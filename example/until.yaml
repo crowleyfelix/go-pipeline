@@ -1,4 +1,5 @@
 id: until-example
+description: Repeat steps until a counter reaches a target value.
 steps:
 - id: setup
   type: set

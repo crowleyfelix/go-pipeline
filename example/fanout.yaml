@@ -1,4 +1,5 @@
 id: fanout-example
+description: Execute multiple nested pipelines concurrently and aggregate their outputs.
 steps:
 - type: fanout
   params:

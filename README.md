@@ -58,6 +58,7 @@ Create an YAML with the pipeline definition.
 
 ```yaml
 id: range-example
+description: Process a numeric list with range and log each item.
 steps:   
 - id: some-step
   type: set
@@ -72,6 +73,23 @@ steps:
     - type: log
       params:
         message: '{{ printf "Processing %d item: %v" ( variable . "range.$index" ) ( variable . "range" )}}'
+```
+
+To compose pipelines, use the `pipeline` step and point `uses` to other pipeline IDs.
+
+```yaml
+id: composed-example
+description: Compose and execute multiple pipelines in sequence.
+steps:
+- type: pipeline
+  params:
+    uses: set-example
+- type: pipeline
+  params:
+    uses: range-example
+- type: pipeline
+  params:
+    uses: log-example
 ```
 
 Load the pipeline passing the folder path, and execute.
@@ -212,6 +230,7 @@ And the registered plugins can be used like this
 
 ```yaml
 id: my-pipeline
+description: Example pipeline using a custom step.
 steps:
 - id: previous-step
   type: custom

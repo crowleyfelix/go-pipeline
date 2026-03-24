@@ -3,8 +3,8 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"io"
 	"io/fs"
+	"strings"
 
 	"github.com/crowleyfelix/go-pipeline/pkg/log"
 	"github.com/samber/lo"
@@ -38,9 +38,10 @@ func (p Pipelines) Execute(ctx context.Context, scope Scope, ids ...string) (Sco
 
 // Pipeline represents a single pipeline with an ID and a sequence of steps to execute.
 type Pipeline struct {
-	Uses  string `yaml:"uses"`
-	ID    string `yaml:"id"`
-	Steps []Step `yaml:"steps"`
+	Uses        string `yaml:"uses"`
+	ID          string `yaml:"id"`
+	Description string `yaml:"description"`
+	Steps       []Step `yaml:"steps"`
 }
 
 // Load creates a new Pipelines instance by loading pipeline definitions from the provided file system.
@@ -48,30 +49,32 @@ type Pipeline struct {
 func Load(fileSystem fs.FS) (Pipelines, error) {
 	pipelines := make(map[string]Pipeline)
 
-	names, err := fs.Glob(fileSystem, "*.yaml")
-	if err != nil {
-		return Pipelines{}, err
-	}
-
-	for _, name := range names {
-		fl, err := fileSystem.Open(name)
+	err := fs.WalkDir(fileSystem, ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return Pipelines{}, err
+			return err
 		}
 
-		blob, err := io.ReadAll(fl)
+		if d.IsDir() || (!strings.HasSuffix(name, ".yaml") && !strings.HasSuffix(name, ".yml")) {
+			return nil
+		}
+
+		blob, err := fs.ReadFile(fileSystem, name)
 		if err != nil {
-			return Pipelines{}, err
+			return err
 		}
 
 		var pipe Pipeline
 
-		err = yaml.Unmarshal(blob, &pipe)
-		if err != nil {
-			return Pipelines{}, err
+		if err := yaml.Unmarshal(blob, &pipe); err != nil {
+			return err
 		}
 
 		pipelines[pipe.ID] = pipe
+
+		return nil
+	})
+	if err != nil {
+		return Pipelines{}, err
 	}
 
 	return Pipelines{
