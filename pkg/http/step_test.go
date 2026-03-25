@@ -19,6 +19,12 @@ func (m mockClient) Do(*nethttp.Request) (*nethttp.Response, error) {
 	return m.response, m.err
 }
 
+type mockClientFunc func(*nethttp.Request) (*nethttp.Response, error)
+
+func (f mockClientFunc) Do(req *nethttp.Request) (*nethttp.Response, error) {
+	return f(req)
+}
+
 func TestStepExecutor(t *testing.T) {
 	t.Parallel()
 
@@ -171,5 +177,52 @@ func TestStepExecutor_SetParams(t *testing.T) {
 	isOK, ok := values["ok"].(string)
 	if !ok || isOK != "true" {
 		t.Fatalf("unexpected ok value: %#v", values["ok"])
+	}
+}
+
+func TestStepExecutor_HeaderTemplateInterpolation(t *testing.T) {
+	t.Parallel()
+
+	var capturedAuthorization string
+	var capturedTenant string
+
+	executor := StepExecutor(mockClientFunc(func(req *nethttp.Request) (*nethttp.Response, error) {
+		capturedAuthorization = req.Header.Get("Authorization")
+		capturedTenant = req.Header.Get("X-Tenant")
+
+		return &nethttp.Response{
+			StatusCode: 200,
+			Body:       io.NopCloser(strings.NewReader(`{"ok":true}`)),
+			Header:     nethttp.Header{},
+		}, nil
+	}))
+
+	step := pipeline.Step{
+		ID:   "http",
+		Type: "http",
+		Params: map[string]any{
+			"url":    "https://example.com",
+			"method": "GET",
+			"header": map[string]any{
+				"Authorization": []string{`Bearer {{ variableGet . "auth" "token" }}`},
+				"X-Tenant":      []string{`{{ variableGet . "auth" "tenant" }}`},
+			},
+		},
+	}
+
+	scope := pipeline.NewScope(pipeline.Pipelines{}).
+		WithVariable("auth", map[string]any{"token": "abc123", "tenant": "acme"})
+
+	_, err := executor.Execute(context.Background(), scope, step)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if capturedAuthorization != "Bearer abc123" {
+		t.Fatalf("unexpected Authorization header: %q", capturedAuthorization)
+	}
+
+	if capturedTenant != "acme" {
+		t.Fatalf("unexpected X-Tenant header: %q", capturedTenant)
 	}
 }

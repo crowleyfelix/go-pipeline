@@ -27,10 +27,29 @@ type ExecutorParams struct {
 	URL    expression.String   `yaml:"url"`
 	Method expression.String   `yaml:"method"`
 	Body   expression.String   `yaml:"body"`
-	Header http.Header         `yaml:"header"`
+	Header Header              `yaml:"header"`
 	Read   bool                `yaml:"read"`
 	Set    pipeline.SetParams  `yaml:"set"`
 	Stop   pipeline.StopParams `yaml:"stop"`
+}
+
+type Header map[string][]expression.String
+
+func (h Header) Eval(ctx context.Context, scope any) (http.Header, error) {
+	result := http.Header{}
+
+	for key, values := range h {
+		for _, value := range values {
+			evaluated, err := value.Eval(ctx, scope)
+			if err != nil {
+				return nil, err
+			}
+
+			result.Add(key, evaluated)
+		}
+	}
+
+	return result, nil
 }
 
 // StepExecutor executes an HTTP request based on the provided parameters.
@@ -74,6 +93,11 @@ func StepExecutor(client Client) pipeline.StepExecutor {
 				return scope, err
 			}
 
+			header, err := p.Header.Eval(ctx, scope)
+			if err != nil {
+				return scope, err
+			}
+
 			var reader io.Reader
 			if body != "" {
 				reader = strings.NewReader(body)
@@ -84,7 +108,7 @@ func StepExecutor(client Client) pipeline.StepExecutor {
 				return scope, err
 			}
 
-			req.Header = p.Header
+			req.Header = header
 
 			resp, err := client.Do(req)
 			if err != nil {
